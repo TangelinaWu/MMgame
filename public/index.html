@@ -53,14 +53,26 @@
       font-weight: 700;
     }
     #progress-wrap { flex: 1; margin: 0 8px; }
-    #progress-label { font-size: 10px; color: var(--text-dim); margin-bottom: 3px; }
-    #progress-bar-bg { background: var(--cell); border-radius: 6px; height: 7px; overflow: hidden; }
-    #progress-bar-fill {
-      height: 100%;
-      background: linear-gradient(90deg, var(--accent2), var(--green));
-      border-radius: 6px;
-      transition: width 0.4s ease;
-      width: 0%;
+    #progress-label { font-size: 10px; color: var(--text-dim); margin-bottom: 4px; }
+    #progress-dots { display: flex; gap: 5px; align-items: center; flex-wrap: wrap; }
+    .pdot {
+      width: 9px; height: 9px;
+      border-radius: 50%;
+      background: var(--cell-bd);
+      border: 1.5px solid var(--border);
+      transition: background 0.3s, transform 0.25s, border-color 0.3s;
+      flex-shrink: 0;
+    }
+    .pdot.done {
+      background: var(--green);
+      border-color: var(--green);
+      transform: scale(1.15);
+    }
+    .pdot.done.just-done { animation: dotPop 0.4s cubic-bezier(.34,1.56,.64,1); }
+    @keyframes dotPop {
+      0%   { transform: scale(1); }
+      50%  { transform: scale(1.8); background: #fff; }
+      100% { transform: scale(1.15); }
     }
     #coins-badge {
       font-size: 14px;
@@ -70,7 +82,14 @@
       border: 1px solid rgba(255,214,0,0.3);
       border-radius: 16px;
       padding: 4px 10px;
+      transition: transform 0.1s;
     }
+    @keyframes coinBump {
+      0%   { transform: scale(1); }
+      40%  { transform: scale(1.28); filter: brightness(1.4); }
+      100% { transform: scale(1); filter: none; }
+    }
+    .coin-bump { animation: coinBump 0.38s cubic-bezier(.34,1.56,.64,1); }
 
     /* ── ORDERS ─────────────────────────────── */
     #orders-section {
@@ -108,6 +127,15 @@
       user-select: none;
     }
     .order-card:active { transform: scale(0.95); }
+    @keyframes cardOut {
+      0%   { transform: scale(1) translateY(0); opacity: 1; max-width: 200px; }
+      100% { transform: scale(0.5) translateY(-16px); opacity: 0; max-width: 0; padding: 0; margin: 0; min-width: 0; }
+    }
+    .order-card.removing {
+      animation: cardOut 0.35s ease forwards;
+      pointer-events: none;
+      overflow: hidden;
+    }
     .order-card.ready {
       border-color: var(--green);
       box-shadow: 0 0 12px rgba(0,230,118,0.35);
@@ -481,7 +509,7 @@
   <div id="level-badge">Lv 1</div>
   <div id="progress-wrap">
     <div id="progress-label">0 / 3 orders</div>
-    <div id="progress-bar-bg"><div id="progress-bar-fill"></div></div>
+    <div id="progress-dots"></div>
   </div>
   <div id="coins-badge">🪙 0</div>
 </div>
@@ -526,9 +554,11 @@
 <div class="overlay" id="overlay-lvlcomplete">
   <div class="overlay-bg"></div>
   <div class="overlay-card" style="text-align:center">
-    <h2>⭐ Level Complete!</h2>
-    <p id="lvl-msg">Great cooking!</p>
-    <button class="btn-primary" id="btn-next-level">Next Level →</button>
+    <div id="lvl-stars" style="font-size:32px;margin-bottom:6px;">⭐⭐⭐</div>
+    <h2 id="lvl-complete-title">Level 1 Complete!</h2>
+    <p id="lvl-msg" style="margin-bottom:10px;"></p>
+    <div id="lvl-next-preview" style="background:var(--cell);border-radius:12px;padding:10px 14px;margin-bottom:18px;font-size:13px;color:var(--text-dim);text-align:left;border:1px solid var(--border);"></div>
+    <button class="btn-primary" id="btn-next-level">Cook Level <span id="next-lvl-num">2</span> →</button>
   </div>
 </div>
 
@@ -588,42 +618,80 @@ const SPAWNER_DEFS = [
 ];
 
 const ORDER_POOLS = [
-  // Pool 0 — easy
+  // Pool 0 — tutorial (Lv1 only, single ingredient)
   [
-    { label:'Veggie Plate',   items:[['veggie',2]],                           coins:15 },
-    { label:'Egg Dish',       items:[['protein',2]],                          coins:15 },
-    { label:'Fresh Bread',    items:[['grain',2]],                            coins:15 },
-    { label:'Sauce Cup',      items:[['sauce',2]],                            coins:20 },
-    { label:'Breakfast Bowl', items:[['veggie',2],['protein',2]],             coins:35 },
-    { label:'Bread & Tomato', items:[['grain',2],['sauce',1]],                coins:28 },
+    { label:'Sprout Plate',   items:[['veggie',1]],  coins:8  },
+    { label:'Raw Egg',        items:[['protein',1]], coins:8  },
+    { label:'Wheat Stalk',    items:[['grain',1]],   coins:8  },
+    { label:'Fresh Tomato',   items:[['sauce',1]],   coins:8  },
   ],
-  // Pool 1 — medium
+  // Pool 1 — easy (Lv2 single, simple merges)
   [
-    { label:'Garden Salad',   items:[['veggie',3]],                           coins:30 },
-    { label:'Sandwich',       items:[['grain',3]],                            coins:30 },
-    { label:'Pasta Bowl',     items:[['sauce',3]],                            coins:40 },
-    { label:'Veggie Sub',     items:[['veggie',3],['grain',2]],               coins:50 },
-    { label:'Stew Bowl',      items:[['protein',3],['sauce',2]],              coins:55 },
-    { label:'Combo Plate',    items:[['veggie',2],['protein',2],['grain',2]], coins:55 },
+    { label:'Veggie Plate',   items:[['veggie',2]],              coins:15 },
+    { label:'Egg Dish',       items:[['protein',2]],             coins:15 },
+    { label:'Fresh Bread',    items:[['grain',2]],               coins:15 },
+    { label:'Sauce Cup',      items:[['sauce',2]],               coins:18 },
   ],
-  // Pool 2 — hard
+  // Pool 2 — easy+ (Lv2 combos, 2 ingredients)
   [
-    { label:'Garden Bowl',    items:[['veggie',4]],                           coins:70 },
-    { label:'Roast Plate',    items:[['protein',4]],                          coins:70 },
-    { label:'Gourmet Salad',  items:[['veggie',3],['protein',3]],             coins:85 },
-    { label:'Ramen Set',      items:[['grain',4],['sauce',3]],                coins:95 },
-    { label:'Chef Special',   items:[['veggie',3],['protein',3],['sauce',2]], coins:110 },
-    { label:'Grand Feast',    items:[['veggie',4],['grain',3],['sauce',3]],   coins:130 },
+    { label:'Breakfast Bowl', items:[['veggie',2],['protein',2]],  coins:32 },
+    { label:'Bread & Sauce',  items:[['grain',2],['sauce',2]],     coins:32 },
+    { label:'Farmer Plate',   items:[['protein',2],['grain',2]],   coins:32 },
+    { label:'Garden Snack',   items:[['veggie',2],['sauce',2]],    coins:32 },
+  ],
+  // Pool 3 — medium (Lv3 single, 3 merges per item)
+  [
+    { label:'Garden Salad',   items:[['veggie',3]],  coins:40 },
+    { label:'Club Sandwich',  items:[['grain',3]],   coins:40 },
+    { label:'Pasta Bowl',     items:[['sauce',3]],   coins:45 },
+    { label:'Hearty Stew',    items:[['protein',3]], coins:45 },
+  ],
+  // Pool 4 — medium+ (Lv3 combos, Lv2 triples)
+  [
+    { label:'Veggie Sub',     items:[['veggie',3],['grain',2]],              coins:58 },
+    { label:'Stew & Sauce',   items:[['protein',3],['sauce',2]],             coins:60 },
+    { label:'Triple Combo',   items:[['veggie',2],['protein',2],['grain',2]],coins:55 },
+    { label:'Power Lunch',    items:[['protein',3],['veggie',2]],            coins:60 },
+    { label:'Chef Salad',     items:[['veggie',3],['sauce',3]],              coins:75 },
+    { label:'Pasta Plate',    items:[['grain',3],['sauce',3]],               coins:75 },
+  ],
+  // Pool 5 — hard (Lv4 single, Lv3 pairs, 7+ merges)
+  [
+    { label:'Garden Bowl',    items:[['veggie',4]],                          coins:80  },
+    { label:'Roast Plate',    items:[['protein',4]],                         coins:80  },
+    { label:'Croissant',      items:[['grain',4]],                           coins:80  },
+    { label:'Ramen',          items:[['sauce',4]],                           coins:80  },
+    { label:'Gourmet Salad',  items:[['veggie',3],['protein',3]],            coins:90  },
+    { label:'Ramen Set',      items:[['grain',4],['sauce',2]],               coins:95  },
+    { label:'Harvest Bowl',   items:[['veggie',4],['grain',2]],              coins:95  },
+  ],
+  // Pool 6 — very hard (Lv4 combos, 3-item orders)
+  [
+    { label:'Chef Special',   items:[['veggie',3],['protein',3],['sauce',2]],coins:115 },
+    { label:'Grand Feast',    items:[['veggie',4],['grain',3],['sauce',3]],  coins:140 },
+    { label:'Master Bowl',    items:[['protein',4],['sauce',4]],             coins:145 },
+    { label:'Ultimate Plate', items:[['veggie',4],['protein',4]],            coins:150 },
+    { label:'Legendary Set',  items:[['grain',4],['sauce',4],['veggie',3]],  coins:165 },
+    { label:'Grand Omakase',  items:[['veggie',4],['protein',4],['grain',4]],coins:200 },
   ],
 ];
 
+// Difficulty label shown on level-complete screen
+const DIFFICULTY_LABELS = [
+  'Beginner','Beginner','Easy','Easy','Medium','Medium','Hard','Hard','Expert','Master'
+];
+
 const LEVEL_CFG = [
-  { need:3, maxOrders:2, pool:0 },
-  { need:4, maxOrders:2, pool:0 },
-  { need:4, maxOrders:3, pool:1 },
-  { need:5, maxOrders:3, pool:1 },
-  { need:5, maxOrders:4, pool:2 },
-  { need:6, maxOrders:4, pool:2 },
+  { need:2, maxOrders:2, pool:0, label:'Tutorial'   }, // Level 1  — Lv1 single
+  { need:3, maxOrders:2, pool:1, label:'Easy'        }, // Level 2  — Lv2 single
+  { need:3, maxOrders:2, pool:2, label:'Easy+'       }, // Level 3  — Lv2 combos
+  { need:4, maxOrders:2, pool:3, label:'Medium'      }, // Level 4  — Lv3 single
+  { need:4, maxOrders:3, pool:4, label:'Medium+'     }, // Level 5  — Lv3 combos
+  { need:5, maxOrders:3, pool:4, label:'Medium+'     }, // Level 6  — Lv3 combos, more
+  { need:5, maxOrders:3, pool:5, label:'Hard'        }, // Level 7  — Lv4 + Lv3 pairs
+  { need:6, maxOrders:4, pool:5, label:'Hard+'       }, // Level 8  — Lv4 single, 4 slots
+  { need:6, maxOrders:4, pool:6, label:'Expert'      }, // Level 9  — Lv4 combos
+  { need:7, maxOrders:4, pool:6, label:'Master'      }, // Level 10+ — full complexity
 ];
 
 // =====================================================================
@@ -658,6 +726,9 @@ function mkGrid() {
 
 function cfg() {
   return LEVEL_CFG[Math.min(state.level - 1, LEVEL_CFG.length - 1)];
+}
+function nextCfg() {
+  return LEVEL_CFG[Math.min(state.level, LEVEL_CFG.length - 1)];
 }
 function emo(cat, lvl)  { return CHAINS[cat][lvl - 1].emoji; }
 function iname(cat, lvl){ return CHAINS[cat][lvl - 1].name; }
@@ -727,21 +798,36 @@ function deliverOrder(oid) {
   const positions = orderPositions(order);
   if (!positions) { showToast('Missing ingredients! 🍽️'); return; }
 
+  // Animate card out immediately
+  const card = document.querySelector(`.order-card[data-oid="${oid}"]`);
+  if (card) card.classList.add('removing');
+
+  // Remove items from grid and update score right away
   positions.forEach(([r, c]) => { state.grid[r][c] = null; });
   state.coins += order.coins;
-  state.orders.splice(idx, 1);
   state.ordersCompleted++;
   state.selected = null;
 
   floatScore(`+${order.coins} 🪙`);
   showToast(`✅ ${order.label} delivered!`);
+  bumpCoins();
+  renderGrid();
+  renderHeader(); // dots update immediately
 
-  if (state.ordersCompleted >= cfg().need) {
-    setTimeout(showLevelComplete, 500);
-  } else {
-    setTimeout(() => { fillOrders(); renderOrders(); renderHeader(); }, 350);
-  }
-  renderAll();
+  const needForLevel = cfg().need;
+
+  // After card animation finishes, update state and refill
+  setTimeout(() => {
+    state.orders.splice(state.orders.findIndex(o => o.id === oid), 1);
+
+    if (state.ordersCompleted >= needForLevel) {
+      renderOrders();
+      setTimeout(showLevelComplete, 300);
+    } else {
+      fillOrders();
+      renderOrders();
+    }
+  }, 360);
 }
 
 // =====================================================================
@@ -1032,13 +1118,45 @@ function useSpawner(cat) {
 //  RENDER
 // =====================================================================
 
+let _lastDone = 0;
 function renderHeader() {
   const c = cfg();
   const done = Math.min(state.ordersCompleted, c.need);
   document.getElementById('level-badge').textContent = `Lv ${state.level}`;
   document.getElementById('progress-label').textContent = `${done} / ${c.need} orders`;
-  document.getElementById('progress-bar-fill').style.width = `${(done / c.need) * 100}%`;
   document.getElementById('coins-badge').textContent = `🪙 ${state.coins}`;
+
+  // Render progress dots
+  const dotsEl = document.getElementById('progress-dots');
+  const justCompleted = done > _lastDone ? done - 1 : -1; // index that just turned done
+  _lastDone = done;
+
+  // Rebuild dots only when count changes
+  if (dotsEl.children.length !== c.need) {
+    dotsEl.innerHTML = '';
+    for (let i = 0; i < c.need; i++) {
+      const d = document.createElement('div');
+      d.className = 'pdot';
+      dotsEl.appendChild(d);
+    }
+  }
+
+  Array.from(dotsEl.children).forEach((d, i) => {
+    d.className = 'pdot' + (i < done ? ' done' : '');
+    if (i === justCompleted) {
+      // Trigger pop animation by forcing reflow
+      d.classList.add('just-done');
+      d.addEventListener('animationend', () => d.classList.remove('just-done'), { once: true });
+    }
+  });
+}
+
+function bumpCoins() {
+  const el = document.getElementById('coins-badge');
+  el.classList.remove('coin-bump');
+  void el.offsetWidth;
+  el.classList.add('coin-bump');
+  el.addEventListener('animationend', () => el.classList.remove('coin-bump'), { once: true });
 }
 
 function renderOrders() {
@@ -1232,8 +1350,33 @@ function floatScore(txt) {
 
 function showLevelComplete() {
   state.phase = 'lvlcomplete';
-  document.getElementById('lvl-msg').textContent =
-    `Level ${state.level} cleared — 🪙 ${state.coins} coins so far!`;
+
+  const nextLevel = state.level + 1;
+  const nc = nextCfg();
+
+  // Stars: always 3 for now (future: based on speed/efficiency)
+  document.getElementById('lvl-stars').textContent = '⭐⭐⭐';
+  document.getElementById('lvl-complete-title').textContent = `Level ${state.level} Complete!`;
+  document.getElementById('lvl-msg').textContent = `You earned 🪙 ${state.coins} coins total!`;
+  document.getElementById('next-lvl-num').textContent = nextLevel;
+
+  // Preview of next level difficulty
+  const preview = document.getElementById('lvl-next-preview');
+  const poolSample = ORDER_POOLS[nc.pool];
+  const maxItemLvl = poolSample.reduce((mx, t) => Math.max(mx, ...t.items.map(([,l])=>l)), 0);
+  const diffLabel = nc.label;
+  const hints = [];
+  if (maxItemLvl >= 4) hints.push('Lv4 ingredients — needs 7 merges each');
+  else if (maxItemLvl >= 3) hints.push('Lv3 ingredients — needs 3 merges each');
+  else if (maxItemLvl >= 2) hints.push('Lv2 ingredients — needs 1 merge each');
+  else hints.push('Lv1 ingredients — just spawn!');
+  if (nc.maxOrders > cfg().maxOrders) hints.push(`${nc.maxOrders} active orders (up from ${cfg().maxOrders})`);
+  if (nc.need > cfg().need) hints.push(`${nc.need} orders to complete (up from ${cfg().need})`);
+
+  preview.innerHTML =
+    `<strong style="color:#fff">Level ${nextLevel}: ${diffLabel}</strong><br>` +
+    hints.map(h => `• ${h}`).join('<br>');
+
   document.getElementById('overlay-lvlcomplete').classList.add('active');
 }
 
@@ -1244,6 +1387,7 @@ function startNextLevel() {
   state.selected = null;
   state.grid = mkGrid();
   state.phase = 'playing';
+  _lastDone = 0;
   document.getElementById('overlay-lvlcomplete').classList.remove('active');
   fillOrders();
   renderAll();
@@ -1285,6 +1429,7 @@ function buildSpawners() {
 
 function startGame() {
   state.phase = 'playing';
+  _lastDone = 0;
   document.getElementById('overlay-welcome').classList.remove('active');
   fillOrders();
   renderAll();
