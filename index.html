@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Merge Cooking Game</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app">
+      <header>
+        <h1>Merge Cooking Rush</h1>
+        <div id="stats" class="stats"></div>
+      </header>
+
+      <section class="customers-panel">
+        <h2>Customers</h2>
+        <div id="customers" class="customers"></div>
+      </section>
+
+      <section class="generators-panel">
+        <h2>Ingredient Generators</h2>
+        <div id="generators" class="generators"></div>
+      </section>
+
+      <section class="grid-panel">
+        <h2>Kitchen Grid (8 x 8)</h2>
+        <div id="grid" class="grid" aria-label="Kitchen grid"></div>
+      </section>
+
+      <p id="message" class="message" aria-live="polite"></p>
+    </main>
+
+    <script src="./game.js"></script>
+  </body>
+</html>
