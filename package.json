@@ -1,0 +1,11 @@
+{
+  "name": "vertical-cooking-merge-game",
+  "version": "0.1.0",
+  "description": "Vertical mobile cooking merge game for Apple App Store.",
+  "main": "src/main.ts",
+  "scripts": {
+    "start": "echo 'Add your build/start command here'"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}

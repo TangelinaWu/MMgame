@@ -1,0 +1,1326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Merge Kitchen</title>
+  <style>
+    :root {
+      --bg:       #120824;
+      --panel:    #1e0f3a;
+      --panel2:   #2a1550;
+      --border:   #4a2080;
+      --accent:   #e040fb;
+      --accent2:  #7c4dff;
+      --gold:     #ffd600;
+      --green:    #00e676;
+      --text-dim: #9e7fc0;
+      --cell:     #1a0d30;
+      --cell-bd:  #2e1660;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    html, body { height: 100%; overflow: hidden; background: #080010; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Rounded', 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      height: 100dvh;
+      max-width: 430px;
+      margin: 0 auto;
+      position: relative;
+      box-shadow: 0 0 60px rgba(120,0,255,0.3);
+    }
+
+    /* ── HEADER ─────────────────────────────── */
+    #header {
+      background: var(--panel);
+      border-bottom: 1.5px solid var(--border);
+      padding: 10px 14px 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+      gap: 8px;
+    }
+    #level-badge {
+      background: linear-gradient(135deg, var(--accent2), var(--accent));
+      border-radius: 20px;
+      padding: 4px 14px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    #progress-wrap { flex: 1; margin: 0 8px; }
+    #progress-label { font-size: 10px; color: var(--text-dim); margin-bottom: 3px; }
+    #progress-bar-bg { background: var(--cell); border-radius: 6px; height: 7px; overflow: hidden; }
+    #progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent2), var(--green));
+      border-radius: 6px;
+      transition: width 0.4s ease;
+      width: 0%;
+    }
+    #coins-badge {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--gold);
+      background: rgba(255,214,0,0.12);
+      border: 1px solid rgba(255,214,0,0.3);
+      border-radius: 16px;
+      padding: 4px 10px;
+    }
+
+    /* ── ORDERS ─────────────────────────────── */
+    #orders-section {
+      background: var(--panel);
+      border-bottom: 1.5px solid var(--border);
+      padding: 6px 10px 8px;
+      flex-shrink: 0;
+    }
+    #orders-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--text-dim);
+      margin-bottom: 6px;
+    }
+    #orders-container {
+      display: flex;
+      gap: 7px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+      scrollbar-width: none;
+    }
+    #orders-container::-webkit-scrollbar { display: none; }
+
+    .order-card {
+      background: var(--cell);
+      border: 2px solid var(--cell-bd);
+      border-radius: 14px;
+      padding: 7px 9px 6px;
+      min-width: 84px;
+      flex-shrink: 0;
+      cursor: pointer;
+      transition: border-color 0.15s, box-shadow 0.15s, transform 0.1s;
+      position: relative;
+      user-select: none;
+    }
+    .order-card:active { transform: scale(0.95); }
+    .order-card.ready {
+      border-color: var(--green);
+      box-shadow: 0 0 12px rgba(0,230,118,0.35);
+    }
+    .order-card.ready .order-deliver-btn { display: flex; }
+    .order-name {
+      font-size: 9px;
+      color: var(--text-dim);
+      margin-bottom: 5px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .order-items-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 2px;
+      min-height: 26px;
+      margin-bottom: 5px;
+    }
+    .order-item-chip {
+      font-size: 18px;
+      line-height: 1;
+      position: relative;
+      transition: opacity 0.2s;
+    }
+    .order-item-chip.missing { opacity: 0.35; }
+    .order-item-chip.found::after {
+      content: '✓';
+      position: absolute;
+      bottom: -2px; right: -4px;
+      font-size: 9px;
+      background: var(--green);
+      color: #000;
+      border-radius: 50%;
+      width: 11px; height: 11px;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 900;
+    }
+    .order-reward { font-size: 11px; color: var(--gold); font-weight: 700; }
+    .order-deliver-btn {
+      position: absolute;
+      top: -9px; right: -6px;
+      background: var(--green);
+      color: #000;
+      font-size: 9px;
+      font-weight: 800;
+      padding: 3px 7px;
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+      display: none;
+      align-items: center;
+      white-space: nowrap;
+      z-index: 2;
+    }
+    .order-info-hint {
+      font-size: 9px;
+      color: var(--accent2);
+      opacity: 0.7;
+      margin-top: 2px;
+    }
+
+    /* ── GRID ───────────────────────────────── */
+    #grid-section {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px;
+      min-height: 0;
+    }
+    #grid {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      grid-template-rows: repeat(8, 1fr);
+      gap: 3px;
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      max-height: 100%;
+    }
+    .cell {
+      background: var(--cell);
+      border: 1.5px solid var(--cell-bd);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: default;
+      transition: border-color 0.1s, background 0.1s, box-shadow 0.1s;
+      position: relative;
+      overflow: visible;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+    .cell.has-item { cursor: grab; }
+    .cell.selected {
+      border-color: var(--gold);
+      background: #1e1800;
+      box-shadow: inset 0 0 0 1px var(--gold), 0 0 10px rgba(255,214,0,0.5);
+    }
+    .cell.merge-hint {
+      border-color: var(--accent);
+      background: #1e003a;
+      animation: pulseGlow 0.85s ease-in-out infinite;
+    }
+    @keyframes pulseGlow {
+      0%,100% { box-shadow: 0 0 6px rgba(224,64,251,0.3); }
+      50%      { box-shadow: 0 0 18px rgba(224,64,251,0.9); }
+    }
+    .cell.drag-source { opacity: 0.35; }
+    .cell.drop-move  { border-color: rgba(100,210,255,0.6); background: #001a20; }
+    .cell.drop-merge {
+      border-color: var(--accent);
+      background: #1e003a;
+      box-shadow: 0 0 20px rgba(224,64,251,0.7);
+    }
+    .cell-inner {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      pointer-events: none;
+    }
+    .cell-emoji {
+      font-size: clamp(14px, 3.8vw, 22px);
+      line-height: 1.1;
+    }
+    .cell-lvl {
+      font-size: clamp(7px, 1.5vw, 9px);
+      color: rgba(255,255,255,0.4);
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    /* ── DRAG GHOST ─────────────────────────── */
+    #drag-ghost {
+      position: fixed;
+      pointer-events: none;
+      z-index: 999;
+      font-size: 40px;
+      line-height: 1;
+      transform: translate(-50%, -70%) scale(1.35);
+      filter: drop-shadow(0 8px 16px rgba(0,0,0,0.8));
+      display: none;
+      transition: none;
+    }
+
+    /* ── SPAWNERS ───────────────────────────── */
+    #spawners-section {
+      background: var(--panel);
+      border-top: 1.5px solid var(--border);
+      padding: 7px 10px 12px;
+      flex-shrink: 0;
+    }
+    #spawners-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--text-dim);
+      margin-bottom: 6px;
+    }
+    #spawners-row { display: flex; gap: 7px; }
+    .spawner-btn {
+      flex: 1;
+      background: var(--cell);
+      border: 2px solid var(--accent);
+      border-radius: 14px;
+      padding: 9px 4px 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      cursor: pointer;
+      transition: transform 0.1s, box-shadow 0.15s;
+      user-select: none;
+      box-shadow: 0 0 8px rgba(224,64,251,0.2);
+    }
+    .spawner-btn:active {
+      transform: scale(0.9);
+      box-shadow: 0 0 18px rgba(224,64,251,0.5);
+    }
+    .spawner-icon  { font-size: 22px; line-height: 1; }
+    .spawner-name  { font-size: 9px; color: var(--text-dim); font-weight: 700; text-transform: uppercase; }
+    .spawner-gives { font-size: 13px; }
+
+    /* ── OVERLAYS ───────────────────────────── */
+    .overlay {
+      position: absolute;
+      inset: 0;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+    }
+    .overlay.active { display: flex; }
+    .overlay-bg {
+      position: absolute;
+      inset: 0;
+      background: rgba(8,0,16,0.88);
+      backdrop-filter: blur(6px);
+    }
+    .overlay-card {
+      position: relative;
+      background: var(--panel2);
+      border: 2px solid var(--border);
+      border-radius: 24px;
+      padding: 24px 20px 20px;
+      width: 90%;
+      max-height: 80dvh;
+      overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+    }
+    .overlay-card h2 { font-size: 26px; margin-bottom: 8px; text-align: center; }
+    .overlay-card > p { font-size: 14px; color: var(--text-dim); margin-bottom: 20px; line-height: 1.6; text-align: center; }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent2), var(--accent));
+      border: none;
+      color: #fff;
+      font-size: 16px;
+      font-weight: 800;
+      padding: 12px 28px;
+      border-radius: 28px;
+      cursor: pointer;
+      width: 100%;
+      box-shadow: 0 4px 20px rgba(224,64,251,0.4);
+      transition: transform 0.1s;
+    }
+    .btn-primary:active { transform: scale(0.97); }
+    .btn-secondary {
+      background: transparent;
+      border: 2px solid var(--border);
+      color: var(--text-dim);
+      font-size: 15px;
+      font-weight: 700;
+      padding: 11px 24px;
+      border-radius: 28px;
+      cursor: pointer;
+      flex: 1;
+      transition: border-color 0.15s;
+    }
+    .btn-secondary:active { border-color: var(--accent); }
+
+    /* ── RECIPE OVERLAY ─────────────────────── */
+    #overlay-recipe .overlay-card { text-align: left; }
+    #recipe-order-name {
+      font-size: 17px;
+      font-weight: 800;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .recipe-block { margin-bottom: 14px; }
+    .recipe-block-hdr {
+      font-size: 13px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 7px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .recipe-block-hdr .rh-goal { font-size: 22px; }
+    .recipe-step {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 10px;
+      background: var(--cell);
+      border-radius: 10px;
+      margin-bottom: 4px;
+      border: 1px solid var(--cell-bd);
+    }
+    .rs-from  { font-size: 18px; line-height: 1; }
+    .rs-plus  { font-size: 13px; color: var(--text-dim); }
+    .rs-arrow { font-size: 15px; color: var(--accent); font-weight: 700; }
+    .rs-to    { font-size: 20px; line-height: 1; }
+    .rs-name  { font-size: 12px; color: #ccc; font-weight: 600; flex: 1; }
+    .rs-final { font-size: 12px; color: var(--green); font-weight: 800; }
+    .recipe-spawn {
+      padding: 7px 10px;
+      background: var(--cell);
+      border-radius: 10px;
+      font-size: 12px;
+      color: var(--text-dim);
+      border: 1px solid var(--cell-bd);
+    }
+    .recipe-divider { height: 1px; background: var(--border); margin: 12px 0; }
+    .recipe-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 16px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border);
+    }
+    #btn-recipe-deliver { display: none; }
+
+    /* ── TOAST ──────────────────────────────── */
+    #toast {
+      position: absolute;
+      bottom: 110px;
+      left: 50%;
+      transform: translateX(-50%) translateY(8px);
+      background: rgba(30,10,50,0.95);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 9px 20px;
+      font-size: 13px;
+      font-weight: 600;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.22s, transform 0.22s;
+      z-index: 500;
+      white-space: nowrap;
+      backdrop-filter: blur(8px);
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* ── FLOAT SCORE ────────────────────────── */
+    .float-score {
+      position: absolute;
+      font-size: 20px;
+      font-weight: 900;
+      color: var(--gold);
+      pointer-events: none;
+      z-index: 400;
+      left: 50%; top: 40%;
+      transform: translateX(-50%);
+      animation: floatUp 1.1s ease forwards;
+    }
+    @keyframes floatUp {
+      0%   { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+      100% { opacity: 0; transform: translateX(-50%) translateY(-80px) scale(1.5); }
+    }
+
+    /* ── CELL ANIMATIONS ────────────────────── */
+    @keyframes popIn {
+      0%   { transform: scale(0) rotate(-15deg); opacity: 0; }
+      65%  { transform: scale(1.2) rotate(4deg); }
+      100% { transform: scale(1) rotate(0deg); opacity: 1; }
+    }
+    .anim-pop { animation: popIn 0.3s cubic-bezier(.34,1.56,.64,1) both; }
+
+    @keyframes mergeFlash {
+      0%   { transform: scale(1); filter: none; }
+      35%  { transform: scale(1.6); filter: brightness(3) saturate(2); }
+      65%  { transform: scale(0.9); }
+      100% { transform: scale(1); filter: none; }
+    }
+    .anim-merge { animation: mergeFlash 0.42s cubic-bezier(.34,1.56,.64,1) both; }
+
+    /* particles */
+    .particle {
+      position: fixed;
+      pointer-events: none;
+      z-index: 998;
+      font-size: 14px;
+      animation: particleFly 0.6s ease forwards;
+    }
+    @keyframes particleFly {
+      0%   { opacity: 1; transform: translate(0,0) scale(1); }
+      100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(0.3); }
+    }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div id="header">
+  <div id="level-badge">Lv 1</div>
+  <div id="progress-wrap">
+    <div id="progress-label">0 / 3 orders</div>
+    <div id="progress-bar-bg"><div id="progress-bar-fill"></div></div>
+  </div>
+  <div id="coins-badge">🪙 0</div>
+</div>
+
+<!-- ORDERS -->
+<div id="orders-section">
+  <div id="orders-label">📋 Orders — tap card to see recipe</div>
+  <div id="orders-container"></div>
+</div>
+
+<!-- GRID -->
+<div id="grid-section">
+  <div id="grid"></div>
+</div>
+
+<!-- SPAWNERS -->
+<div id="spawners-section">
+  <div id="spawners-label">✨ Spawners — tap to add ingredients</div>
+  <div id="spawners-row"></div>
+</div>
+
+<!-- DRAG GHOST -->
+<div id="drag-ghost"></div>
+
+<!-- WELCOME OVERLAY -->
+<div class="overlay active" id="overlay-welcome">
+  <div class="overlay-bg"></div>
+  <div class="overlay-card">
+    <h2>🍳 Merge Kitchen</h2>
+    <p>
+      Tap a <strong>Spawner</strong> to drop ingredients.<br><br>
+      <strong>Drag</strong> an ingredient onto a matching one to merge.<br>
+      Or <strong>tap</strong> to select, then tap to merge.<br><br>
+      Tap an <strong>Order card</strong> to see the recipe.<br>
+      Hit <strong>Deliver!</strong> when all items are ready.
+    </p>
+    <button class="btn-primary" id="btn-start">Start Cooking! 🔥</button>
+  </div>
+</div>
+
+<!-- LEVEL COMPLETE OVERLAY -->
+<div class="overlay" id="overlay-lvlcomplete">
+  <div class="overlay-bg"></div>
+  <div class="overlay-card" style="text-align:center">
+    <h2>⭐ Level Complete!</h2>
+    <p id="lvl-msg">Great cooking!</p>
+    <button class="btn-primary" id="btn-next-level">Next Level →</button>
+  </div>
+</div>
+
+<!-- RECIPE OVERLAY -->
+<div class="overlay" id="overlay-recipe">
+  <div class="overlay-bg" id="recipe-bg"></div>
+  <div class="overlay-card">
+    <div id="recipe-order-name"></div>
+    <div id="recipe-content"></div>
+    <div class="recipe-actions">
+      <button class="btn-secondary" id="btn-recipe-close">← Back</button>
+      <button class="btn-primary" id="btn-recipe-deliver">Deliver! ✅</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script>
+// =====================================================================
+//  DATA
+// =====================================================================
+
+const CHAINS = {
+  veggie:  [
+    { emoji:'🌱', name:'Seed' },
+    { emoji:'🥦', name:'Broccoli' },
+    { emoji:'🥗', name:'Salad' },
+    { emoji:'🌿', name:'Garden Bowl' },
+  ],
+  protein: [
+    { emoji:'🥚', name:'Egg' },
+    { emoji:'🍳', name:'Fried Egg' },
+    { emoji:'🥘', name:'Stew' },
+    { emoji:'🍖', name:'Roast' },
+  ],
+  grain:   [
+    { emoji:'🌾', name:'Wheat' },
+    { emoji:'🍞', name:'Bread' },
+    { emoji:'🥪', name:'Sandwich' },
+    { emoji:'🥐', name:'Croissant' },
+  ],
+  sauce:   [
+    { emoji:'🍅', name:'Tomato' },
+    { emoji:'🫙', name:'Sauce' },
+    { emoji:'🍝', name:'Pasta' },
+    { emoji:'🍜', name:'Ramen' },
+  ],
+};
+
+const SPAWNER_DEFS = [
+  { cat:'veggie',  icon:'🌿', name:'Veggie'  },
+  { cat:'protein', icon:'🥩', name:'Protein' },
+  { cat:'grain',   icon:'🌾', name:'Grain'   },
+  { cat:'sauce',   icon:'🍅', name:'Sauce'   },
+];
+
+const ORDER_POOLS = [
+  // Pool 0 — easy
+  [
+    { label:'Veggie Plate',   items:[['veggie',2]],                           coins:15 },
+    { label:'Egg Dish',       items:[['protein',2]],                          coins:15 },
+    { label:'Fresh Bread',    items:[['grain',2]],                            coins:15 },
+    { label:'Sauce Cup',      items:[['sauce',2]],                            coins:20 },
+    { label:'Breakfast Bowl', items:[['veggie',2],['protein',2]],             coins:35 },
+    { label:'Bread & Tomato', items:[['grain',2],['sauce',1]],                coins:28 },
+  ],
+  // Pool 1 — medium
+  [
+    { label:'Garden Salad',   items:[['veggie',3]],                           coins:30 },
+    { label:'Sandwich',       items:[['grain',3]],                            coins:30 },
+    { label:'Pasta Bowl',     items:[['sauce',3]],                            coins:40 },
+    { label:'Veggie Sub',     items:[['veggie',3],['grain',2]],               coins:50 },
+    { label:'Stew Bowl',      items:[['protein',3],['sauce',2]],              coins:55 },
+    { label:'Combo Plate',    items:[['veggie',2],['protein',2],['grain',2]], coins:55 },
+  ],
+  // Pool 2 — hard
+  [
+    { label:'Garden Bowl',    items:[['veggie',4]],                           coins:70 },
+    { label:'Roast Plate',    items:[['protein',4]],                          coins:70 },
+    { label:'Gourmet Salad',  items:[['veggie',3],['protein',3]],             coins:85 },
+    { label:'Ramen Set',      items:[['grain',4],['sauce',3]],                coins:95 },
+    { label:'Chef Special',   items:[['veggie',3],['protein',3],['sauce',2]], coins:110 },
+    { label:'Grand Feast',    items:[['veggie',4],['grain',3],['sauce',3]],   coins:130 },
+  ],
+];
+
+const LEVEL_CFG = [
+  { need:3, maxOrders:2, pool:0 },
+  { need:4, maxOrders:2, pool:0 },
+  { need:4, maxOrders:3, pool:1 },
+  { need:5, maxOrders:3, pool:1 },
+  { need:5, maxOrders:4, pool:2 },
+  { need:6, maxOrders:4, pool:2 },
+];
+
+// =====================================================================
+//  STATE
+// =====================================================================
+
+const G = 8;
+let state = {
+  level: 1,
+  coins: 0,
+  ordersCompleted: 0,
+  orders: [],
+  nextOId: 0,
+  grid: mkGrid(),
+  selected: null,   // [r, c] | null  — tap-select mode
+  phase: 'welcome',
+};
+
+// Drag state (lives outside main state to avoid triggering renders)
+let drag = null;
+// { fromR, fromC, item, startX, startY, isDragging, overR, overC }
+
+let recipeOrderId = null; // which order's recipe is showing
+
+function mkGrid() {
+  return Array.from({ length: G }, () => Array(G).fill(null));
+}
+
+// =====================================================================
+//  HELPERS
+// =====================================================================
+
+function cfg() {
+  return LEVEL_CFG[Math.min(state.level - 1, LEVEL_CFG.length - 1)];
+}
+function emo(cat, lvl)  { return CHAINS[cat][lvl - 1].emoji; }
+function iname(cat, lvl){ return CHAINS[cat][lvl - 1].name; }
+function maxLvl(cat)    { return CHAINS[cat].length; }
+
+function spawnerName(cat) {
+  return SPAWNER_DEFS.find(s => s.cat === cat)?.name ?? cat;
+}
+
+function firstEmpty() {
+  for (let r = G - 1; r >= 0; r--)
+    for (let c = 0; c < G; c++)
+      if (!state.grid[r][c]) return [r, c];
+  return null;
+}
+
+function cellEl(r, c) {
+  return document.querySelector(`.cell[data-r="${r}"][data-c="${c}"]`);
+}
+
+// =====================================================================
+//  ORDERS
+// =====================================================================
+
+function makeOrder() {
+  const pool = ORDER_POOLS[cfg().pool];
+  const tmpl = pool[Math.floor(Math.random() * pool.length)];
+  return {
+    id: state.nextOId++,
+    label: tmpl.label,
+    coins: tmpl.coins,
+    items: tmpl.items.map(([cat, lvl]) => ({ cat, lvl })),
+  };
+}
+
+function fillOrders() {
+  while (state.orders.length < cfg().maxOrders) {
+    state.orders.push(makeOrder());
+  }
+}
+
+function orderPositions(order) {
+  const taken = new Set();
+  const out = [];
+  for (const item of order.items) {
+    let found = false;
+    for (let r = 0; r < G && !found; r++) {
+      for (let c = 0; c < G && !found; c++) {
+        const key = r * G + c;
+        const cell = state.grid[r][c];
+        if (cell && cell.cat === item.cat && cell.lvl === item.lvl && !taken.has(key)) {
+          taken.add(key);
+          out.push([r, c]);
+          found = true;
+        }
+      }
+    }
+    if (!found) return null;
+  }
+  return out;
+}
+
+function deliverOrder(oid) {
+  const idx = state.orders.findIndex(o => o.id === oid);
+  if (idx === -1) return;
+  const order = state.orders[idx];
+  const positions = orderPositions(order);
+  if (!positions) { showToast('Missing ingredients! 🍽️'); return; }
+
+  positions.forEach(([r, c]) => { state.grid[r][c] = null; });
+  state.coins += order.coins;
+  state.orders.splice(idx, 1);
+  state.ordersCompleted++;
+  state.selected = null;
+
+  floatScore(`+${order.coins} 🪙`);
+  showToast(`✅ ${order.label} delivered!`);
+
+  if (state.ordersCompleted >= cfg().need) {
+    setTimeout(showLevelComplete, 500);
+  } else {
+    setTimeout(() => { fillOrders(); renderOrders(); renderHeader(); }, 350);
+  }
+  renderAll();
+}
+
+// =====================================================================
+//  RECIPE
+// =====================================================================
+
+function showRecipe(order) {
+  recipeOrderId = order.id;
+
+  document.getElementById('recipe-order-name').textContent = `📋 ${order.label}`;
+
+  const content = document.getElementById('recipe-content');
+  content.innerHTML = '';
+
+  order.items.forEach((item, idx) => {
+    if (idx > 0) {
+      const div = document.createElement('div');
+      div.className = 'recipe-divider';
+      content.appendChild(div);
+    }
+
+    const block = document.createElement('div');
+    block.className = 'recipe-block';
+
+    const hdr = document.createElement('div');
+    hdr.className = 'recipe-block-hdr';
+    hdr.innerHTML = `<span class="rh-goal">${emo(item.cat, item.lvl)}</span> ${iname(item.cat, item.lvl)} needed`;
+    block.appendChild(hdr);
+
+    if (item.lvl === 1) {
+      const sp = document.createElement('div');
+      sp.className = 'recipe-spawn';
+      sp.textContent = `Tap the ${spawnerName(item.cat)} spawner — no merging needed`;
+      block.appendChild(sp);
+    } else {
+      // First step: spawn base
+      const spawnRow = document.createElement('div');
+      spawnRow.className = 'recipe-spawn';
+      spawnRow.textContent = `Start: spawn ${emo(item.cat, 1)} ${iname(item.cat, 1)} from ${spawnerName(item.cat)} spawner`;
+      block.appendChild(spawnRow);
+
+      // Each merge step
+      for (let lvl = 1; lvl < item.lvl; lvl++) {
+        const step = document.createElement('div');
+        step.className = 'recipe-step';
+        const isFinal = (lvl + 1 === item.lvl);
+        step.innerHTML =
+          `<span class="rs-from">${emo(item.cat, lvl)}</span>` +
+          `<span class="rs-plus">+</span>` +
+          `<span class="rs-from">${emo(item.cat, lvl)}</span>` +
+          `<span class="rs-arrow">→</span>` +
+          `<span class="rs-to">${emo(item.cat, lvl + 1)}</span>` +
+          `<span class="rs-name">${iname(item.cat, lvl + 1)}</span>` +
+          (isFinal ? `<span class="rs-final">✓ goal</span>` : '');
+        block.appendChild(step);
+      }
+    }
+
+    content.appendChild(block);
+  });
+
+  // Deliver button visibility
+  const deliverBtn = document.getElementById('btn-recipe-deliver');
+  deliverBtn.style.display = orderPositions(order) ? 'block' : 'none';
+
+  document.getElementById('overlay-recipe').classList.add('active');
+}
+
+function closeRecipe() {
+  document.getElementById('overlay-recipe').classList.remove('active');
+  recipeOrderId = null;
+}
+
+// =====================================================================
+//  GRID LOGIC
+// =====================================================================
+
+function spawnIn(cat) {
+  if (!firstEmpty()) { showToast('Grid is full! 😅'); return false; }
+  const [r, c] = firstEmpty();
+  state.grid[r][c] = { cat, lvl: 1 };
+  renderGrid();
+  renderOrders();
+  setTimeout(() => animCell(r, c, 'anim-pop'), 0);
+  return true;
+}
+
+function doMerge(fromR, fromC, toR, toC) {
+  const src = state.grid[fromR][fromC];
+  if (!src) return false;
+  const dst = state.grid[toR][toC];
+  if (!dst || dst.cat !== src.cat || dst.lvl !== src.lvl) return false;
+  if (src.lvl >= maxLvl(src.cat)) { showToast(`${iname(src.cat, src.lvl)} is max level! ✨`); return false; }
+
+  const newLvl = src.lvl + 1;
+  state.grid[fromR][fromC] = null;
+  state.grid[toR][toC] = { cat: src.cat, lvl: newLvl };
+
+  showToast(`✨ ${iname(src.cat, newLvl)}!`);
+  spawnParticles(toR, toC);
+  setTimeout(() => animCell(toR, toC, 'anim-merge'), 0);
+  renderAll();
+  return true;
+}
+
+function doMove(fromR, fromC, toR, toC) {
+  state.grid[toR][toC] = state.grid[fromR][fromC];
+  state.grid[fromR][fromC] = null;
+  setTimeout(() => animCell(toR, toC, 'anim-pop'), 0);
+  renderAll();
+}
+
+// ── TAP INTERACTION ──────────────────────────
+
+function handleTap(r, c) {
+  if (state.phase !== 'playing') return;
+  const item = state.grid[r][c];
+
+  if (!state.selected) {
+    if (!item) return;
+    state.selected = [r, c];
+    renderGrid();
+    return;
+  }
+
+  const [sr, sc] = state.selected;
+
+  if (sr === r && sc === c) {
+    state.selected = null;
+    renderGrid();
+    return;
+  }
+
+  const selItem = state.grid[sr][sc];
+
+  if (!item) {
+    // Move
+    state.selected = null;
+    doMove(sr, sc, r, c);
+    return;
+  }
+
+  if (selItem && item.cat === selItem.cat && item.lvl === selItem.lvl) {
+    // Merge
+    state.selected = null;
+    doMerge(sr, sc, r, c);
+    return;
+  }
+
+  // Re-select
+  state.selected = [r, c];
+  renderGrid();
+}
+
+// ── DRAG INTERACTION ─────────────────────────
+
+const DRAG_THRESHOLD = 7;
+const ghost = document.getElementById('drag-ghost');
+
+function onCellPointerDown(e, r, c) {
+  if (state.phase !== 'playing') return;
+  if (e.button !== undefined && e.button !== 0) return; // left button only
+
+  const item = state.grid[r][c];
+
+  if (!item) {
+    // Tap on empty — handle selection move via tap path
+    if (state.selected) {
+      e.preventDefault();
+      handleTap(r, c);
+    }
+    return;
+  }
+
+  e.preventDefault();
+
+  drag = {
+    fromR: r, fromC: c, item,
+    startX: e.clientX, startY: e.clientY,
+    isDragging: false,
+    overR: null, overC: null,
+  };
+}
+
+function onDocPointerMove(e) {
+  if (!drag) return;
+
+  const dx = e.clientX - drag.startX;
+  const dy = e.clientY - drag.startY;
+
+  if (!drag.isDragging) {
+    if (Math.sqrt(dx * dx + dy * dy) < DRAG_THRESHOLD) return;
+    // Start drag
+    drag.isDragging = true;
+    state.selected = null; // clear tap selection
+
+    ghost.textContent = drag.item.emoji ?? emo(drag.item.cat, drag.item.lvl);
+    ghost.style.display = 'block';
+
+    const src = cellEl(drag.fromR, drag.fromC);
+    if (src) src.classList.add('drag-source');
+  }
+
+  ghost.style.left = e.clientX + 'px';
+  ghost.style.top  = e.clientY + 'px';
+
+  // Find cell under pointer (ghost has pointer-events:none so elementFromPoint skips it)
+  const el = document.elementFromPoint(e.clientX, e.clientY);
+  const target = el?.closest('.cell');
+
+  // Clear previous drop hints
+  document.querySelectorAll('.cell.drop-move, .cell.drop-merge').forEach(c => {
+    c.classList.remove('drop-move', 'drop-merge');
+  });
+
+  drag.overR = null;
+  drag.overC = null;
+
+  if (target) {
+    const tr = +target.dataset.r;
+    const tc = +target.dataset.c;
+    if (!(tr === drag.fromR && tc === drag.fromC)) {
+      drag.overR = tr;
+      drag.overC = tc;
+      const targetItem = state.grid[tr][tc];
+      if (!targetItem) {
+        target.classList.add('drop-move');
+      } else if (targetItem.cat === drag.item.cat && targetItem.lvl === drag.item.lvl && drag.item.lvl < maxLvl(drag.item.cat)) {
+        target.classList.add('drop-merge');
+      }
+    }
+  }
+
+  e.preventDefault();
+}
+
+function onDocPointerUp(e) {
+  if (!drag) return;
+
+  const { fromR, fromC, isDragging, overR, overC } = drag;
+
+  // Cleanup ghost + highlights
+  ghost.style.display = 'none';
+  document.querySelectorAll('.cell.drag-source, .cell.drop-move, .cell.drop-merge').forEach(c => {
+    c.classList.remove('drag-source', 'drop-move', 'drop-merge');
+  });
+
+  const savedDrag = drag;
+  drag = null;
+
+  if (!isDragging) {
+    // Was a tap
+    handleTap(fromR, fromC);
+    return;
+  }
+
+  if (overR === null) return; // dropped outside grid
+
+  const targetItem = state.grid[overR][overC];
+
+  if (!targetItem) {
+    doMove(fromR, fromC, overR, overC);
+  } else {
+    doMerge(fromR, fromC, overR, overC);
+  }
+}
+
+function cancelDrag() {
+  if (!drag) return;
+  ghost.style.display = 'none';
+  document.querySelectorAll('.cell.drag-source, .cell.drop-move, .cell.drop-merge').forEach(c => {
+    c.classList.remove('drag-source', 'drop-move', 'drop-merge');
+  });
+  drag = null;
+  renderGrid();
+}
+
+// =====================================================================
+//  SPAWNERS
+// =====================================================================
+
+function useSpawner(cat) {
+  if (state.phase !== 'playing') return;
+  spawnIn(cat);
+}
+
+// =====================================================================
+//  RENDER
+// =====================================================================
+
+function renderHeader() {
+  const c = cfg();
+  const done = Math.min(state.ordersCompleted, c.need);
+  document.getElementById('level-badge').textContent = `Lv ${state.level}`;
+  document.getElementById('progress-label').textContent = `${done} / ${c.need} orders`;
+  document.getElementById('progress-bar-fill').style.width = `${(done / c.need) * 100}%`;
+  document.getElementById('coins-badge').textContent = `🪙 ${state.coins}`;
+}
+
+function renderOrders() {
+  const con = document.getElementById('orders-container');
+
+  con.querySelectorAll('.order-card').forEach(el => {
+    if (!state.orders.find(o => o.id == el.dataset.oid)) el.remove();
+  });
+
+  state.orders.forEach(order => {
+    const isReady = !!orderPositions(order);
+
+    let card = con.querySelector(`.order-card[data-oid="${order.id}"]`);
+    if (!card) {
+      card = buildOrderCard(order);
+      con.appendChild(card);
+    }
+
+    card.className = 'order-card' + (isReady ? ' ready' : '');
+
+    // Update chip colours
+    const chips = card.querySelectorAll('.order-item-chip');
+    const taken = new Set();
+    order.items.forEach((item, idx) => {
+      const chip = chips[idx];
+      if (!chip) return;
+      let found = false;
+      for (let r = 0; r < G && !found; r++) {
+        for (let c = 0; c < G && !found; c++) {
+          const key = r * G + c;
+          const cell = state.grid[r][c];
+          if (cell && cell.cat === item.cat && cell.lvl === item.lvl && !taken.has(key)) {
+            taken.add(key); found = true;
+          }
+        }
+      }
+      chip.className = 'order-item-chip ' + (found ? 'found' : 'missing');
+    });
+
+    // Update deliver button in open recipe if it matches
+    if (recipeOrderId === order.id) {
+      document.getElementById('btn-recipe-deliver').style.display = isReady ? 'block' : 'none';
+    }
+  });
+}
+
+function buildOrderCard(order) {
+  const card = document.createElement('div');
+  card.className = 'order-card';
+  card.dataset.oid = order.id;
+
+  const deliverBtn = document.createElement('button');
+  deliverBtn.className = 'order-deliver-btn';
+  deliverBtn.textContent = 'Deliver!';
+  deliverBtn.addEventListener('pointerdown', e => e.stopPropagation());
+  deliverBtn.addEventListener('click', e => { e.stopPropagation(); deliverOrder(order.id); });
+
+  const name = document.createElement('div');
+  name.className = 'order-name';
+  name.textContent = order.label;
+
+  const itemsRow = document.createElement('div');
+  itemsRow.className = 'order-items-row';
+  order.items.forEach(item => {
+    const chip = document.createElement('div');
+    chip.className = 'order-item-chip missing';
+    chip.textContent = emo(item.cat, item.lvl);
+    chip.title = `${iname(item.cat, item.lvl)} Lv${item.lvl}`;
+    itemsRow.appendChild(chip);
+  });
+
+  const reward = document.createElement('div');
+  reward.className = 'order-reward';
+  reward.textContent = `🪙 ${order.coins}`;
+
+  const hint = document.createElement('div');
+  hint.className = 'order-info-hint';
+  hint.textContent = 'tap for recipe';
+
+  card.append(deliverBtn, name, itemsRow, reward, hint);
+
+  // Tap card body → show recipe
+  card.addEventListener('click', () => showRecipe(order));
+
+  return card;
+}
+
+function renderGrid() {
+  document.querySelectorAll('.cell').forEach(el => {
+    const r = +el.dataset.r;
+    const c = +el.dataset.c;
+    const item = state.grid[r][c];
+    const isSel = state.selected && state.selected[0] === r && state.selected[1] === c;
+    const selItem = state.selected ? state.grid[state.selected[0]][state.selected[1]] : null;
+    const isMergeHint = !isSel && item && selItem &&
+      item.cat === selItem.cat && item.lvl === selItem.lvl && item.lvl < maxLvl(item.cat);
+
+    // Preserve drag classes — only update base state classes
+    const hasDragSource = el.classList.contains('drag-source');
+    const hasDropMove   = el.classList.contains('drop-move');
+    const hasDropMerge  = el.classList.contains('drop-merge');
+
+    el.className = [
+      'cell',
+      item         ? 'has-item'   : '',
+      isSel        ? 'selected'   : '',
+      isMergeHint  ? 'merge-hint' : '',
+      hasDragSource ? 'drag-source' : '',
+      hasDropMove   ? 'drop-move'   : '',
+      hasDropMerge  ? 'drop-merge'  : '',
+    ].join(' ').trim();
+
+    if (item) {
+      let inner = el.querySelector('.cell-inner');
+      if (!inner) {
+        inner = document.createElement('div');
+        inner.className = 'cell-inner';
+        el.appendChild(inner);
+      }
+      inner.innerHTML =
+        `<span class="cell-emoji">${emo(item.cat, item.lvl)}</span>` +
+        `<span class="cell-lvl">Lv${item.lvl}</span>`;
+    } else {
+      el.innerHTML = '';
+    }
+  });
+}
+
+function renderAll() {
+  renderHeader();
+  renderOrders();
+  renderGrid();
+}
+
+// =====================================================================
+//  FX
+// =====================================================================
+
+function animCell(r, c, cls) {
+  const inner = document.querySelector(`.cell[data-r="${r}"][data-c="${c}"] .cell-inner`);
+  if (!inner) return;
+  inner.classList.remove(cls);
+  void inner.offsetWidth;
+  inner.classList.add(cls);
+  inner.addEventListener('animationend', () => inner.classList.remove(cls), { once: true });
+}
+
+function spawnParticles(r, c) {
+  const el = cellEl(r, c);
+  if (!el) return;
+  const rect = el.getBoundingClientRect();
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top  + rect.height / 2;
+  const emojis = ['✨','⭐','💫','🌟'];
+  for (let i = 0; i < 5; i++) {
+    const p = document.createElement('div');
+    p.className = 'particle';
+    p.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+    const angle = (Math.random() * Math.PI * 2);
+    const dist  = 40 + Math.random() * 40;
+    p.style.setProperty('--dx', `${Math.cos(angle) * dist}px`);
+    p.style.setProperty('--dy', `${Math.sin(angle) * dist}px`);
+    p.style.left = cx + 'px';
+    p.style.top  = cy + 'px';
+    p.style.animationDelay = (Math.random() * 0.1) + 's';
+    document.body.appendChild(p);
+    p.addEventListener('animationend', () => p.remove());
+  }
+}
+
+let _toastT;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(_toastT);
+  _toastT = setTimeout(() => t.classList.remove('show'), 1900);
+}
+
+function floatScore(txt) {
+  const el = document.createElement('div');
+  el.className = 'float-score';
+  el.textContent = txt;
+  document.body.appendChild(el);
+  el.addEventListener('animationend', () => el.remove());
+}
+
+// =====================================================================
+//  LEVELS
+// =====================================================================
+
+function showLevelComplete() {
+  state.phase = 'lvlcomplete';
+  document.getElementById('lvl-msg').textContent =
+    `Level ${state.level} cleared — 🪙 ${state.coins} coins so far!`;
+  document.getElementById('overlay-lvlcomplete').classList.add('active');
+}
+
+function startNextLevel() {
+  state.level++;
+  state.ordersCompleted = 0;
+  state.orders = [];
+  state.selected = null;
+  state.grid = mkGrid();
+  state.phase = 'playing';
+  document.getElementById('overlay-lvlcomplete').classList.remove('active');
+  fillOrders();
+  renderAll();
+}
+
+// =====================================================================
+//  INIT
+// =====================================================================
+
+function buildGrid() {
+  const gridEl = document.getElementById('grid');
+  gridEl.innerHTML = '';
+  for (let r = 0; r < G; r++) {
+    for (let c = 0; c < G; c++) {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      cell.dataset.r = r;
+      cell.dataset.c = c;
+      cell.addEventListener('pointerdown', e => onCellPointerDown(e, r, c), { passive: false });
+      gridEl.appendChild(cell);
+    }
+  }
+}
+
+function buildSpawners() {
+  const row = document.getElementById('spawners-row');
+  row.innerHTML = '';
+  SPAWNER_DEFS.forEach(sp => {
+    const btn = document.createElement('div');
+    btn.className = 'spawner-btn';
+    btn.innerHTML =
+      `<div class="spawner-icon">${sp.icon}</div>` +
+      `<div class="spawner-name">${sp.name}</div>` +
+      `<div class="spawner-gives">${CHAINS[sp.cat][0].emoji}</div>`;
+    btn.addEventListener('click', () => useSpawner(sp.cat));
+    row.appendChild(btn);
+  });
+}
+
+function startGame() {
+  state.phase = 'playing';
+  document.getElementById('overlay-welcome').classList.remove('active');
+  fillOrders();
+  renderAll();
+}
+
+// Global pointer listeners for drag
+document.addEventListener('pointermove',  onDocPointerMove,  { passive: false });
+document.addEventListener('pointerup',    onDocPointerUp);
+document.addEventListener('pointercancel', cancelDrag);
+
+// Static button wiring
+document.getElementById('btn-start').addEventListener('click', startGame);
+document.getElementById('btn-next-level').addEventListener('click', startNextLevel);
+document.getElementById('btn-recipe-close').addEventListener('click', closeRecipe);
+document.getElementById('recipe-bg').addEventListener('click', closeRecipe);
+document.getElementById('btn-recipe-deliver').addEventListener('click', () => {
+  if (recipeOrderId !== null) {
+    closeRecipe();
+    deliverOrder(recipeOrderId);
+  }
+});
+
+// Build DOM and first render
+buildGrid();
+buildSpawners();
+renderAll();
+
+// Periodic order refill
+setInterval(() => {
+  if (state.phase !== 'playing') return;
+  if (state.orders.length < cfg().maxOrders) {
+    fillOrders();
+    renderOrders();
+    renderHeader();
+  }
+}, 8000);
+</script>
+</body>
+</html>
