@@ -152,7 +152,7 @@ export function buildOrderCard(order: Order): HTMLElement {
   hint.className   = 'order-info-hint'
   hint.textContent = 'tap for recipe'
 
-  card.append(deliverBtn, nameEl, itemsRow, reward, hint)
+  card.append(nameEl, itemsRow, reward, hint, deliverBtn)
 
   card.addEventListener('click', () => _callbacks.onShowRecipe(order))
 
@@ -202,9 +202,7 @@ export function renderGrid(): void {
         inner.className = 'cell-inner'
         el.appendChild(inner)
       }
-      inner.innerHTML =
-        `<span class="cell-emoji">${emo(item.cat, item.lvl)}</span>` +
-        `<span class="cell-lvl">Lv${item.lvl}</span>`
+      inner.innerHTML = `<span class="cell-emoji">${emo(item.cat, item.lvl)}</span>`
     } else {
       el.innerHTML = ''
     }

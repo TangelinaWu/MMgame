@@ -38,7 +38,7 @@
     #header {
       background: var(--panel);
       border-bottom: 1.5px solid var(--border);
-      padding: 10px 14px 8px;
+      padding: 7px 12px 6px;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -95,7 +95,7 @@
     #orders-section {
       background: var(--panel);
       border-bottom: 1.5px solid var(--border);
-      padding: 6px 10px 8px;
+      padding: 4px 8px 6px;
       flex-shrink: 0;
     }
     #orders-label {
@@ -103,11 +103,11 @@
       text-transform: uppercase;
       letter-spacing: 1.5px;
       color: var(--text-dim);
-      margin-bottom: 6px;
+      margin-bottom: 4px;
     }
     #orders-container {
       display: flex;
-      gap: 7px;
+      gap: 6px;
       overflow-x: auto;
       padding-bottom: 2px;
       scrollbar-width: none;
@@ -118,8 +118,8 @@
       background: var(--cell);
       border: 2px solid var(--cell-bd);
       border-radius: 14px;
-      padding: 7px 9px 6px;
-      min-width: 84px;
+      padding: 9px 11px 8px;
+      min-width: 100px;
       flex-shrink: 0;
       cursor: pointer;
       transition: border-color 0.15s, box-shadow 0.15s, transform 0.1s;
@@ -147,7 +147,13 @@
       border-color: var(--green);
       box-shadow: 0 0 12px rgba(0,230,118,0.35);
     }
-    .order-card.ready .order-deliver-btn { display: flex; }
+    .order-card.ready .order-deliver-btn { display: block; }
+    .order-card.ready .order-info-hint   { display: none; }
+    .order-card.drop-deliver {
+      border-color: var(--green) !important;
+      box-shadow: 0 0 22px rgba(0,230,118,0.7) !important;
+      transform: scale(1.05) !important;
+    }
     .order-name {
       font-size: 9px;
       color: var(--text-dim);
@@ -159,12 +165,12 @@
     .order-items-row {
       display: flex;
       flex-wrap: wrap;
-      gap: 2px;
-      min-height: 26px;
+      gap: 3px;
+      min-height: 34px;
       margin-bottom: 5px;
     }
     .order-item-chip {
-      font-size: 18px;
+      font-size: 26px;
       line-height: 1;
       position: relative;
       transition: opacity 0.2s;
@@ -184,20 +190,18 @@
     }
     .order-reward { font-size: 11px; color: var(--gold); font-weight: 700; }
     .order-deliver-btn {
-      position: absolute;
-      top: -9px; right: -6px;
+      display: none;
+      width: 100%;
       background: var(--green);
       color: #000;
-      font-size: 9px;
-      font-weight: 800;
-      padding: 3px 7px;
-      border-radius: 10px;
+      font-size: 10px;
+      font-weight: 900;
+      padding: 5px 0;
+      border-radius: 8px;
       border: none;
       cursor: pointer;
-      display: none;
-      align-items: center;
-      white-space: nowrap;
-      z-index: 2;
+      margin-top: 5px;
+      letter-spacing: 0.3px;
     }
     .order-info-hint {
       font-size: 9px;
@@ -212,14 +216,14 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 8px;
+      padding: 5px;
       min-height: 0;
     }
     #grid {
       display: grid;
       grid-template-columns: repeat(8, 1fr);
       grid-template-rows: repeat(8, 1fr);
-      gap: 3px;
+      gap: 2px;
       width: 100%;
       aspect-ratio: 1 / 1;
       max-height: 100%;
@@ -268,15 +272,10 @@
       pointer-events: none;
     }
     .cell-emoji {
-      font-size: clamp(14px, 3.8vw, 22px);
-      line-height: 1.1;
-    }
-    .cell-lvl {
-      font-size: clamp(7px, 1.5vw, 9px);
-      color: rgba(255,255,255,0.4);
-      font-weight: 700;
+      font-size: clamp(18px, 4.8vw, 28px);
       line-height: 1;
     }
+    .cell-lvl { display: none; }
 
     /* ── DRAG GHOST ─────────────────────────── */
     #drag-ghost {
@@ -295,7 +294,7 @@
     #spawners-section {
       background: var(--panel);
       border-top: 1.5px solid var(--border);
-      padding: 7px 10px 12px;
+      padding: 5px 8px 10px;
       flex-shrink: 0;
     }
     #spawners-label {
@@ -303,7 +302,7 @@
       text-transform: uppercase;
       letter-spacing: 1.5px;
       color: var(--text-dim);
-      margin-bottom: 6px;
+      margin-bottom: 4px;
     }
     #spawners-row { display: flex; gap: 7px; }
     .spawner-btn {

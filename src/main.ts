@@ -191,16 +191,33 @@ function onDocPointerMove(e: PointerEvent): void {
   ghost.style.left = e.clientX + 'px'
   ghost.style.top  = e.clientY + 'px'
 
-  const el     = document.elementFromPoint(e.clientX, e.clientY)
-  const target = (el as HTMLElement | null)?.closest<HTMLElement>('.cell')
+  const el = document.elementFromPoint(e.clientX, e.clientY)
 
+  // Clear previous drop hints (cells + order cards)
   document.querySelectorAll<HTMLElement>('.cell.drop-move, .cell.drop-merge').forEach(c => {
     c.classList.remove('drop-move', 'drop-merge')
+  })
+  document.querySelectorAll<HTMLElement>('.order-card.drop-deliver').forEach(c => {
+    c.classList.remove('drop-deliver')
   })
 
   drag.overR = null
   drag.overC = null
 
+  // Check if hovering over an order card
+  const orderTarget = (el as HTMLElement | null)?.closest<HTMLElement>('.order-card:not(.removing)')
+  if (orderTarget) {
+    const oid = Number(orderTarget.dataset.oid)
+    const order = state.orders.find(o => o.id === oid)
+    if (order && order.items.some(i => i.cat === drag!.item.cat && i.lvl === drag!.item.lvl)) {
+      orderTarget.classList.add('drop-deliver')
+    }
+    e.preventDefault()
+    return
+  }
+
+  // Check if hovering over a grid cell
+  const target = (el as HTMLElement | null)?.closest<HTMLElement>('.cell')
   if (target) {
     const tr = +(target.dataset.r ?? 0)
     const tc = +(target.dataset.c ?? 0)
@@ -226,16 +243,36 @@ function onDocPointerMove(e: PointerEvent): void {
 function onDocPointerUp(_e: PointerEvent): void {
   if (!drag) return
 
-  const { fromR, fromC, isDragging, overR, overC } = drag
+  const { fromR, fromC, isDragging, overR, overC, item } = drag
 
   ghost.style.display = 'none'
   document.querySelectorAll<HTMLElement>('.cell.drag-source, .cell.drop-move, .cell.drop-merge')
     .forEach(c => c.classList.remove('drag-source', 'drop-move', 'drop-merge'))
 
+  // Capture and clear any order card drop target
+  const deliverTarget = document.querySelector<HTMLElement>('.order-card.drop-deliver')
+  document.querySelectorAll<HTMLElement>('.order-card.drop-deliver')
+    .forEach(c => c.classList.remove('drop-deliver'))
+
   drag = null
 
   if (!isDragging) {
     handleTap(fromR, fromC)
+    return
+  }
+
+  // Dropped onto an order card
+  if (deliverTarget) {
+    const oid = Number(deliverTarget.dataset.oid)
+    const order = state.orders.find(o => o.id === oid)
+    if (order && order.items.some(i => i.cat === item.cat && i.lvl === item.lvl)) {
+      const positions = getOrderPositions(state, order)
+      if (positions) {
+        handleDeliver(oid)
+      } else {
+        showToast('Not all ingredients ready! 🍽️')
+      }
+    }
     return
   }
 
@@ -254,7 +291,6 @@ function onDocPointerUp(_e: PointerEvent): void {
       spawnParticles(overR, overC)
       setTimeout(() => animCell(overR, overC, 'anim-merge'), 0)
     } else {
-      // Merge failed (max level) — show toast
       const src = state.grid[fromR][fromC]
       if (src) showToast(`${iname(src.cat, src.lvl)} is max level! ✨`)
     }
@@ -267,6 +303,8 @@ function cancelDrag(): void {
   ghost.style.display = 'none'
   document.querySelectorAll<HTMLElement>('.cell.drag-source, .cell.drop-move, .cell.drop-merge')
     .forEach(c => c.classList.remove('drag-source', 'drop-move', 'drop-merge'))
+  document.querySelectorAll<HTMLElement>('.order-card.drop-deliver')
+    .forEach(c => c.classList.remove('drop-deliver'))
   drag = null
   renderGrid()
 }
