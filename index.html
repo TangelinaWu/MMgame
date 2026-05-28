@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Merge Kitchen</title>
+  <style>
+    :root {
+      --bg:       #120824;
+      --panel:    #1e0f3a;
+      --panel2:   #2a1550;
+      --border:   #4a2080;
+      --accent:   #e040fb;
+      --accent2:  #7c4dff;
+      --gold:     #ffd600;
+      --green:    #00e676;
+      --text-dim: #9e7fc0;
+      --cell:     #1a0d30;
+      --cell-bd:  #2e1660;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    html, body { height: 100%; overflow: hidden; background: #080010; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Rounded', 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      height: 100dvh;
+      max-width: 430px;
+      margin: 0 auto;
+      position: relative;
+      box-shadow: 0 0 60px rgba(120,0,255,0.3);
+    }
+
+    /* ── HEADER ─────────────────────────────── */
+    #header {
+      background: var(--panel);
+      border-bottom: 1.5px solid var(--border);
+      padding: 10px 14px 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+      gap: 8px;
+    }
+    #level-badge {
+      background: linear-gradient(135deg, var(--accent2), var(--accent));
+      border-radius: 20px;
+      padding: 4px 14px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    #progress-wrap { flex: 1; margin: 0 8px; }
+    #progress-label { font-size: 10px; color: var(--text-dim); margin-bottom: 4px; }
+    #progress-dots { display: flex; gap: 5px; align-items: center; flex-wrap: wrap; }
+    .pdot {
+      width: 9px; height: 9px;
+      border-radius: 50%;
+      background: var(--cell-bd);
+      border: 1.5px solid var(--border);
+      transition: background 0.3s, transform 0.25s, border-color 0.3s;
+      flex-shrink: 0;
+    }
+    .pdot.done {
+      background: var(--green);
+      border-color: var(--green);
+      transform: scale(1.15);
+    }
+    .pdot.done.just-done { animation: dotPop 0.4s cubic-bezier(.34,1.56,.64,1); }
+    @keyframes dotPop {
+      0%   { transform: scale(1); }
+      50%  { transform: scale(1.8); background: #fff; }
+      100% { transform: scale(1.15); }
+    }
+    #coins-badge {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--gold);
+      background: rgba(255,214,0,0.12);
+      border: 1px solid rgba(255,214,0,0.3);
+      border-radius: 16px;
+      padding: 4px 10px;
+      transition: transform 0.1s;
+    }
+    @keyframes coinBump {
+      0%   { transform: scale(1); }
+      40%  { transform: scale(1.28); filter: brightness(1.4); }
+      100% { transform: scale(1); filter: none; }
+    }
+    .coin-bump { animation: coinBump 0.38s cubic-bezier(.34,1.56,.64,1); }
+
+    /* ── ORDERS ─────────────────────────────── */
+    #orders-section {
+      background: var(--panel);
+      border-bottom: 1.5px solid var(--border);
+      padding: 6px 10px 8px;
+      flex-shrink: 0;
+    }
+    #orders-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--text-dim);
+      margin-bottom: 6px;
+    }
+    #orders-container {
+      display: flex;
+      gap: 7px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+      scrollbar-width: none;
+    }
+    #orders-container::-webkit-scrollbar { display: none; }
+
+    .order-card {
+      background: var(--cell);
+      border: 2px solid var(--cell-bd);
+      border-radius: 14px;
+      padding: 7px 9px 6px;
+      min-width: 84px;
+      flex-shrink: 0;
+      cursor: pointer;
+      transition: border-color 0.15s, box-shadow 0.15s, transform 0.1s;
+      position: relative;
+      user-select: none;
+    }
+    .order-card:active { transform: scale(0.95); }
+    @keyframes cardOut {
+      0%   { transform: scale(1) translateY(0); opacity: 1; max-width: 200px; }
+      100% { transform: scale(0.5) translateY(-16px); opacity: 0; max-width: 0; padding: 0; margin: 0; min-width: 0; }
+    }
+    .order-card.removing {
+      animation: cardOut 0.35s ease forwards;
+      pointer-events: none;
+      overflow: hidden;
+    }
+    @keyframes cardIn {
+      from { transform: scale(0.8) translateY(6px); opacity: 0; }
+      to   { transform: scale(1) translateY(0); opacity: 1; }
+    }
+    .order-card.appearing {
+      animation: cardIn 0.3s cubic-bezier(.34, 1.56, .64, 1) both;
+    }
+    .order-card.ready {
+      border-color: var(--green);
+      box-shadow: 0 0 12px rgba(0,230,118,0.35);
+    }
+    .order-card.ready .order-deliver-btn { display: flex; }
+    .order-name {
+      font-size: 9px;
+      color: var(--text-dim);
+      margin-bottom: 5px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .order-items-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 2px;
+      min-height: 26px;
+      margin-bottom: 5px;
+    }
+    .order-item-chip {
+      font-size: 18px;
+      line-height: 1;
+      position: relative;
+      transition: opacity 0.2s;
+    }
+    .order-item-chip.missing { opacity: 0.35; }
+    .order-item-chip.found::after {
+      content: '✓';
+      position: absolute;
+      bottom: -2px; right: -4px;
+      font-size: 9px;
+      background: var(--green);
+      color: #000;
+      border-radius: 50%;
+      width: 11px; height: 11px;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 900;
+    }
+    .order-reward { font-size: 11px; color: var(--gold); font-weight: 700; }
+    .order-deliver-btn {
+      position: absolute;
+      top: -9px; right: -6px;
+      background: var(--green);
+      color: #000;
+      font-size: 9px;
+      font-weight: 800;
+      padding: 3px 7px;
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+      display: none;
+      align-items: center;
+      white-space: nowrap;
+      z-index: 2;
+    }
+    .order-info-hint {
+      font-size: 9px;
+      color: var(--accent2);
+      opacity: 0.7;
+      margin-top: 2px;
+    }
+
+    /* ── GRID ───────────────────────────────── */
+    #grid-section {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px;
+      min-height: 0;
+    }
+    #grid {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      grid-template-rows: repeat(8, 1fr);
+      gap: 3px;
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      max-height: 100%;
+    }
+    .cell {
+      background: var(--cell);
+      border: 1.5px solid var(--cell-bd);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: default;
+      transition: border-color 0.1s, background 0.1s, box-shadow 0.1s;
+      position: relative;
+      overflow: visible;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+    .cell.has-item { cursor: grab; }
+    .cell.selected {
+      border-color: var(--gold);
+      background: #1e1800;
+      box-shadow: inset 0 0 0 1px var(--gold), 0 0 10px rgba(255,214,0,0.5);
+    }
+    .cell.merge-hint {
+      border-color: var(--accent);
+      background: #1e003a;
+      animation: pulseGlow 0.85s ease-in-out infinite;
+    }
+    @keyframes pulseGlow {
+      0%,100% { box-shadow: 0 0 6px rgba(224,64,251,0.3); }
+      50%      { box-shadow: 0 0 18px rgba(224,64,251,0.9); }
+    }
+    .cell.drag-source { opacity: 0.35; }
+    .cell.drop-move  { border-color: rgba(100,210,255,0.6); background: #001a20; }
+    .cell.drop-merge {
+      border-color: var(--accent);
+      background: #1e003a;
+      box-shadow: 0 0 20px rgba(224,64,251,0.7);
+    }
+    .cell-inner {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      pointer-events: none;
+    }
+    .cell-emoji {
+      font-size: clamp(14px, 3.8vw, 22px);
+      line-height: 1.1;
+    }
+    .cell-lvl {
+      font-size: clamp(7px, 1.5vw, 9px);
+      color: rgba(255,255,255,0.4);
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    /* ── DRAG GHOST ─────────────────────────── */
+    #drag-ghost {
+      position: fixed;
+      pointer-events: none;
+      z-index: 999;
+      font-size: 40px;
+      line-height: 1;
+      transform: translate(-50%, -70%) scale(1.35);
+      filter: drop-shadow(0 8px 16px rgba(0,0,0,0.8));
+      display: none;
+      transition: none;
+    }
+
+    /* ── SPAWNERS ───────────────────────────── */
+    #spawners-section {
+      background: var(--panel);
+      border-top: 1.5px solid var(--border);
+      padding: 7px 10px 12px;
+      flex-shrink: 0;
+    }
+    #spawners-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--text-dim);
+      margin-bottom: 6px;
+    }
+    #spawners-row { display: flex; gap: 7px; }
+    .spawner-btn {
+      flex: 1;
+      background: var(--cell);
+      border: 2px solid var(--accent);
+      border-radius: 14px;
+      padding: 9px 4px 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      cursor: pointer;
+      transition: transform 0.1s, box-shadow 0.15s;
+      user-select: none;
+      box-shadow: 0 0 8px rgba(224,64,251,0.2);
+    }
+    .spawner-btn:active {
+      transform: scale(0.9);
+      box-shadow: 0 0 18px rgba(224,64,251,0.5);
+    }
+    .spawner-icon  { font-size: 22px; line-height: 1; }
+    .spawner-name  { font-size: 9px; color: var(--text-dim); font-weight: 700; text-transform: uppercase; }
+    .spawner-gives { font-size: 13px; }
+
+    /* ── OVERLAYS ───────────────────────────── */
+    .overlay {
+      position: absolute;
+      inset: 0;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+    }
+    .overlay.active { display: flex; }
+    .overlay-bg {
+      position: absolute;
+      inset: 0;
+      background: rgba(8,0,16,0.88);
+      backdrop-filter: blur(6px);
+    }
+    .overlay-card {
+      position: relative;
+      background: var(--panel2);
+      border: 2px solid var(--border);
+      border-radius: 24px;
+      padding: 24px 20px 20px;
+      width: 90%;
+      max-height: 80dvh;
+      overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+    }
+    .overlay-card h2 { font-size: 26px; margin-bottom: 8px; text-align: center; }
+    .overlay-card > p { font-size: 14px; color: var(--text-dim); margin-bottom: 20px; line-height: 1.6; text-align: center; }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent2), var(--accent));
+      border: none;
+      color: #fff;
+      font-size: 16px;
+      font-weight: 800;
+      padding: 12px 28px;
+      border-radius: 28px;
+      cursor: pointer;
+      width: 100%;
+      box-shadow: 0 4px 20px rgba(224,64,251,0.4);
+      transition: transform 0.1s;
+    }
+    .btn-primary:active { transform: scale(0.97); }
+    .btn-secondary {
+      background: transparent;
+      border: 2px solid var(--border);
+      color: var(--text-dim);
+      font-size: 15px;
+      font-weight: 700;
+      padding: 11px 24px;
+      border-radius: 28px;
+      cursor: pointer;
+      flex: 1;
+      transition: border-color 0.15s;
+    }
+    .btn-secondary:active { border-color: var(--accent); }
+
+    /* ── RECIPE OVERLAY ─────────────────────── */
+    #overlay-recipe .overlay-card { text-align: left; }
+    #recipe-order-name {
+      font-size: 17px;
+      font-weight: 800;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .recipe-block { margin-bottom: 14px; }
+    .recipe-block-hdr {
+      font-size: 13px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 7px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .recipe-block-hdr .rh-goal { font-size: 22px; }
+    .recipe-step {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 10px;
+      background: var(--cell);
+      border-radius: 10px;
+      margin-bottom: 4px;
+      border: 1px solid var(--cell-bd);
+    }
+    .rs-from  { font-size: 18px; line-height: 1; }
+    .rs-plus  { font-size: 13px; color: var(--text-dim); }
+    .rs-arrow { font-size: 15px; color: var(--accent); font-weight: 700; }
+    .rs-to    { font-size: 20px; line-height: 1; }
+    .rs-name  { font-size: 12px; color: #ccc; font-weight: 600; flex: 1; }
+    .rs-final { font-size: 12px; color: var(--green); font-weight: 800; }
+    .recipe-spawn {
+      padding: 7px 10px;
+      background: var(--cell);
+      border-radius: 10px;
+      font-size: 12px;
+      color: var(--text-dim);
+      border: 1px solid var(--cell-bd);
+    }
+    .recipe-divider { height: 1px; background: var(--border); margin: 12px 0; }
+    .recipe-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 16px;
+      padding-top: 14px;
+      border-top: 1px solid var(--border);
+    }
+    #btn-recipe-deliver { display: none; }
+
+    /* ── TOAST ──────────────────────────────── */
+    #toast {
+      position: absolute;
+      bottom: 110px;
+      left: 50%;
+      transform: translateX(-50%) translateY(8px);
+      background: rgba(30,10,50,0.95);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 9px 20px;
+      font-size: 13px;
+      font-weight: 600;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.22s, transform 0.22s;
+      z-index: 500;
+      white-space: nowrap;
+      backdrop-filter: blur(8px);
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* ── FLOAT SCORE ────────────────────────── */
+    .float-score {
+      position: absolute;
+      font-size: 20px;
+      font-weight: 900;
+      color: var(--gold);
+      pointer-events: none;
+      z-index: 400;
+      left: 50%; top: 40%;
+      transform: translateX(-50%);
+      animation: floatUp 1.1s ease forwards;
+    }
+    @keyframes floatUp {
+      0%   { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+      100% { opacity: 0; transform: translateX(-50%) translateY(-80px) scale(1.5); }
+    }
+
+    /* ── CELL ANIMATIONS ────────────────────── */
+    @keyframes popIn {
+      0%   { transform: scale(0) rotate(-15deg); opacity: 0; }
+      65%  { transform: scale(1.2) rotate(4deg); }
+      100% { transform: scale(1) rotate(0deg); opacity: 1; }
+    }
+    .anim-pop { animation: popIn 0.3s cubic-bezier(.34,1.56,.64,1) both; }
+
+    @keyframes mergeFlash {
+      0%   { transform: scale(1); filter: none; }
+      35%  { transform: scale(1.6); filter: brightness(3) saturate(2); }
+      65%  { transform: scale(0.9); }
+      100% { transform: scale(1); filter: none; }
+    }
+    .anim-merge { animation: mergeFlash 0.42s cubic-bezier(.34,1.56,.64,1) both; }
+
+    /* particles */
+    .particle {
+      position: fixed;
+      pointer-events: none;
+      z-index: 998;
+      font-size: 14px;
+      animation: particleFly 0.6s ease forwards;
+    }
+    @keyframes particleFly {
+      0%   { opacity: 1; transform: translate(0,0) scale(1); }
+      100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(0.3); }
+    }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div id="header">
+  <div id="level-badge">Lv 1</div>
+  <div id="progress-wrap">
+    <div id="progress-label">0 / 3 orders</div>
+    <div id="progress-dots"></div>
+  </div>
+  <div id="coins-badge">🪙 0</div>
+</div>
+
+<!-- ORDERS -->
+<div id="orders-section">
+  <div id="orders-label">📋 Orders — tap card to see recipe</div>
+  <div id="orders-container"></div>
+</div>
+
+<!-- GRID -->
+<div id="grid-section">
+  <div id="grid"></div>
+</div>
+
+<!-- SPAWNERS -->
+<div id="spawners-section">
+  <div id="spawners-label">✨ Spawners — tap to add ingredients</div>
+  <div id="spawners-row"></div>
+</div>
+
+<!-- DRAG GHOST -->
+<div id="drag-ghost"></div>
+
+<!-- WELCOME OVERLAY -->
+<div class="overlay active" id="overlay-welcome">
+  <div class="overlay-bg"></div>
+  <div class="overlay-card">
+    <h2>🍳 Merge Kitchen</h2>
+    <p>
+      Tap a <strong>Spawner</strong> to drop ingredients.<br><br>
+      <strong>Drag</strong> an ingredient onto a matching one to merge.<br>
+      Or <strong>tap</strong> to select, then tap to merge.<br><br>
+      Tap an <strong>Order card</strong> to see the recipe.<br>
+      Hit <strong>Deliver!</strong> when all items are ready.
+    </p>
+    <button class="btn-primary" id="btn-start">Start Cooking! 🔥</button>
+  </div>
+</div>
+
+<!-- LEVEL COMPLETE OVERLAY -->
+<div class="overlay" id="overlay-lvlcomplete">
+  <div class="overlay-bg"></div>
+  <div class="overlay-card" style="text-align:center">
+    <div id="lvl-stars" style="font-size:32px;margin-bottom:6px;">⭐⭐⭐</div>
+    <h2 id="lvl-complete-title">Level 1 Complete!</h2>
+    <p id="lvl-msg" style="margin-bottom:10px;"></p>
+    <div id="lvl-next-preview" style="background:var(--cell);border-radius:12px;padding:10px 14px;margin-bottom:18px;font-size:13px;color:var(--text-dim);text-align:left;border:1px solid var(--border);"></div>
+    <button class="btn-primary" id="btn-next-level">Cook Level <span id="next-lvl-num">2</span> →</button>
+  </div>
+</div>
+
+<!-- RECIPE OVERLAY -->
+<div class="overlay" id="overlay-recipe">
+  <div class="overlay-bg" id="recipe-bg"></div>
+  <div class="overlay-card">
+    <div id="recipe-order-name"></div>
+    <div id="recipe-content"></div>
+    <div class="recipe-actions">
+      <button class="btn-secondary" id="btn-recipe-close">← Back</button>
+      <button class="btn-primary" id="btn-recipe-deliver">Deliver! ✅</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script type="module" src="/src/main.ts"></script>
+</body>
+</html>

@@ -12,22 +12,38 @@ A mobile-first cooking merge game built for the browser. Tap spawners to drop in
 
 ## Stack
 
-- **Vanilla HTML/CSS/JS** — single file (`public/index.html`), no framework, no build step
-- **TypeScript** entry point (`src/main.ts`) for future modularization
+- **TypeScript** — all game logic in `src/` modules, no framework
+- **Vite** — dev server and bundler
+- **HTML/CSS** — single `index.html` shell with inline styles
 - Designed for mobile (max-width 430px, `100dvh`, touch events via Pointer API)
+
+## Project structure
+
+```
+src/
+  data.ts              — chains, order pools, level config, helper functions
+  state.ts             — types and mutable game state singleton
+  game/
+    grid.ts            — pure merge/move/spawn logic
+    orders.ts          — order generation and fulfillment checks
+  ui/
+    fx.ts              — toast, particles, coin bump, cell animations
+    render.ts          — renderHeader, renderGrid, renderOrders, renderAll
+    overlays.ts        — welcome, recipe, level-complete screens
+    spawners.ts        — spawner button construction
+  main.ts              — event wiring, deliver flow, drag/tap handlers, init
+```
 
 ## How to run
 
-Just open `public/index.html` directly in a browser — no server or install needed:
-
 ```bash
-open public/index.html
+npm install
+npm run dev
 ```
 
-Or serve it locally if you prefer:
+Then open `http://localhost:5173` in a mobile-sized browser window (or on your phone).
 
 ```bash
-npx serve public
+npm run build    # production bundle → dist/
+npm run preview  # preview the production build locally
 ```
-
-Then open `http://localhost:3000` on your phone or in a mobile-sized browser window.
