@@ -57,6 +57,22 @@ export const CHAINS: ChainMap = {
   ],
 }
 
+// Dish items — produced by cooking stations, not by chain merging
+// Each is a 1-level chain so emo()/iname() work unchanged
+const DISH_CHAINS: ChainMap = {
+  dish_teriyaki:  [{ emoji: '🥙', name: 'Teriyaki Broccoli' }],
+  dish_egg_toast: [{ emoji: '🍠', name: 'Egg Toast'         }],
+  dish_gyoza:     [{ emoji: '🥟', name: 'Veggie Gyoza'      }],
+  dish_stew_roll: [{ emoji: '🍙', name: 'Stew Roll'         }],
+  dish_grilled:   [{ emoji: '🍚', name: 'Grilled Egg Bowl'  }],
+  dish_roast_p:   [{ emoji: '🧆', name: 'Roast Patty'       }],
+  dish_garden_g:  [{ emoji: '🍔', name: 'Garden Grill'      }],
+  dish_tempura:   [{ emoji: '🍤', name: 'Tomato Tempura'    }],
+  dish_fritter:   [{ emoji: '🍥', name: 'Egg Fritter'       }],
+  dish_crispy:    [{ emoji: '🦐', name: 'Crispy Deluxe'     }],
+}
+Object.assign(CHAINS, DISH_CHAINS)
+
 export type SpawnerDef = { cat: string; icon: string; name: string }
 
 export const SPAWNER_DEFS: SpawnerDef[] = [
@@ -64,6 +80,36 @@ export const SPAWNER_DEFS: SpawnerDef[] = [
   { cat: 'protein', icon: '🥩', name: 'Protein' },
   { cat: 'grain',   icon: '🌾', name: 'Grain'   },
   { cat: 'sauce',   icon: '🍅', name: 'Sauce'   },
+]
+
+export interface StationDef { id: string; icon: string; name: string }
+export const STATION_DEFS: StationDef[] = [
+  { id: 'cutting_board', icon: '🔪', name: 'Cutting Board' },
+  { id: 'grill',         icon: '🔥', name: 'Grill'         },
+  { id: 'fryer',         icon: '♨️', name: 'Fryer'         },
+]
+
+export interface Recipe {
+  stationId: string
+  ing1: { cat: string; lvl: number }
+  ing2: { cat: string; lvl: number }
+  result: string
+}
+
+export const RECIPES: Recipe[] = [
+  // Cutting Board
+  { stationId: 'cutting_board', ing1: { cat: 'veggie',  lvl: 2 }, ing2: { cat: 'sauce',   lvl: 1 }, result: 'dish_teriyaki'  },
+  { stationId: 'cutting_board', ing1: { cat: 'grain',   lvl: 2 }, ing2: { cat: 'protein', lvl: 1 }, result: 'dish_egg_toast' },
+  { stationId: 'cutting_board', ing1: { cat: 'veggie',  lvl: 3 }, ing2: { cat: 'grain',   lvl: 3 }, result: 'dish_gyoza'     },
+  { stationId: 'cutting_board', ing1: { cat: 'protein', lvl: 3 }, ing2: { cat: 'sauce',   lvl: 2 }, result: 'dish_stew_roll' },
+  // Grill
+  { stationId: 'grill',         ing1: { cat: 'protein', lvl: 2 }, ing2: { cat: 'sauce',   lvl: 1 }, result: 'dish_grilled'   },
+  { stationId: 'grill',         ing1: { cat: 'protein', lvl: 4 }, ing2: { cat: 'grain',   lvl: 2 }, result: 'dish_roast_p'   },
+  { stationId: 'grill',         ing1: { cat: 'veggie',  lvl: 4 }, ing2: { cat: 'protein', lvl: 4 }, result: 'dish_garden_g'  },
+  // Fryer
+  { stationId: 'fryer',         ing1: { cat: 'grain',   lvl: 1 }, ing2: { cat: 'sauce',   lvl: 1 }, result: 'dish_tempura'   },
+  { stationId: 'fryer',         ing1: { cat: 'grain',   lvl: 2 }, ing2: { cat: 'protein', lvl: 2 }, result: 'dish_fritter'   },
+  { stationId: 'fryer',         ing1: { cat: 'protein', lvl: 5 }, ing2: { cat: 'sauce',   lvl: 4 }, result: 'dish_crispy'    },
 ]
 
 // [cat, lvl]
@@ -165,6 +211,17 @@ export const ORDER_POOLS: OrderTemplate[][] = [
     { label: 'Grand Omakase II',items:[['protein', 6], ['veggie', 5], ['sauce', 4]], coins: 600 },
     { label: 'Ultimate Spread',items: [['veggie', 6],  ['protein', 6], ['grain', 5]],coins: 760 },
   ],
+  // Pool 10 — Dish orders (require cooked station results)
+  [
+    { label: 'Teriyaki Bowl',    items: [['dish_teriyaki', 1]],                              coins: 90  },
+    { label: 'Egg Toast Plate',  items: [['dish_egg_toast', 1]],                             coins: 90  },
+    { label: 'Gyoza Set',        items: [['dish_gyoza', 1]],                                 coins: 100 },
+    { label: 'Grill Combo',      items: [['dish_grilled', 1], ['dish_teriyaki', 1]],         coins: 180 },
+    { label: 'Fry Platter',      items: [['dish_tempura', 1], ['dish_fritter', 1]],          coins: 170 },
+    { label: 'Roast Burger Set', items: [['dish_roast_p', 1], ['dish_egg_toast', 1]],        coins: 190 },
+    { label: "Chef's Tasting",   items: [['dish_gyoza', 1], ['dish_roast_p', 1], ['dish_tempura', 1]], coins: 280 },
+    { label: 'Grand Station',    items: [['dish_garden_g', 1], ['dish_crispy', 1]],          coins: 380 },
+  ],
 ]
 
 export type LevelCfg = {
@@ -189,12 +246,12 @@ export const LEVEL_CFG: LevelCfg[] = [
   { need: 11, maxOrders: 8,  pool: 7, label: 'Master+'      }, // Level 12
   { need: 11, maxOrders: 9,  pool: 8, label: 'Legend'       }, // Level 13
   { need: 12, maxOrders: 9,  pool: 8, label: 'Legend+'      }, // Level 14
-  { need: 12, maxOrders: 9,  pool: 9, label: 'Grand Master' }, // Level 15
-  { need: 13, maxOrders: 9,  pool: 9, label: 'Grand Master' }, // Level 16
-  { need: 13, maxOrders: 10, pool: 9, label: 'Apex'         }, // Level 17
-  { need: 14, maxOrders: 10, pool: 9, label: 'Apex+'        }, // Level 18
-  { need: 14, maxOrders: 10, pool: 9, label: 'Supreme'      }, // Level 19
-  { need: 15, maxOrders: 10, pool: 9, label: 'Ultimate'     }, // Level 20+
+  { need: 12, maxOrders: 9,  pool: 10, label: 'Grand Master' }, // Level 15
+  { need: 13, maxOrders: 9,  pool: 10, label: 'Grand Master' }, // Level 16
+  { need: 13, maxOrders: 10, pool: 10, label: 'Apex'         }, // Level 17
+  { need: 14, maxOrders: 10, pool: 10, label: 'Apex+'        }, // Level 18
+  { need: 14, maxOrders: 10, pool: 10, label: 'Supreme'      }, // Level 19
+  { need: 15, maxOrders: 10, pool: 10, label: 'Ultimate'     }, // Level 20+
 ]
 
 export const DIFFICULTY_LABELS = [

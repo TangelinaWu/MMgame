@@ -3,7 +3,7 @@
 // =====================================================================
 
 import { emo, maxLvl, iname } from './data.ts'
-import { G, state, mkGrid, getLevelCfg } from './state.ts'
+import { G, state, mkGrid, mkStationSlots, getLevelCfg } from './state.ts'
 import { firstEmpty, applyMerge, applyMove } from './game/grid.ts'
 import { fillOrders, getOrderPositions } from './game/orders.ts'
 import { showToast, floatScore, bumpCoins, animCell, spawnParticles } from './ui/fx.ts'
@@ -24,6 +24,8 @@ import {
   hideLevelComplete,
 } from './ui/overlays.ts'
 import { buildSpawnerButtons } from './ui/spawners.ts'
+import { cookAtStation } from './game/cooking.ts'
+import { buildStationUI, renderStations } from './ui/stations.ts'
 
 // ── Drag state ────────────────────────────────────────────────────────
 
@@ -42,6 +44,13 @@ let drag: DragState | null = null
 
 const DRAG_THRESHOLD = 7
 const ghost = document.getElementById('drag-ghost') as HTMLElement
+
+// ── Full render ───────────────────────────────────────────────────────
+
+function fullRender(): void {
+  renderAll()
+  renderStations()
+}
 
 // ── Deliver ───────────────────────────────────────────────────────────
 
@@ -93,6 +102,52 @@ function afterCardRemoved(): void {
   }
 }
 
+// ── Station interactions ──────────────────────────────────────────────
+
+function handleSlotTap(stationId: string, slotIdx: number): void {
+  if (state.phase !== 'playing') return
+  const slots = state.stationSlots[stationId]
+  // Slot occupied → return item to grid
+  if (slots[slotIdx]) {
+    const pos = firstEmpty(state)
+    if (!pos) { showToast('Grid is full! 😅'); return }
+    const [r, c] = pos
+    state.grid[r][c] = slots[slotIdx]
+    state.stationSlots[stationId][slotIdx] = null
+    renderGrid()
+    renderStations()
+    setTimeout(() => animCell(r, c, 'anim-pop'), 0)
+    return
+  }
+  // Slot empty + grid item selected → move to slot
+  if (state.selected) {
+    const [sr, sc] = state.selected
+    const item = state.grid[sr][sc]
+    if (item) {
+      state.grid[sr][sc] = null
+      state.stationSlots[stationId][slotIdx] = item
+      state.selected = null
+      renderGrid()
+      renderStations()
+    }
+  }
+}
+
+function handleCook(stationId: string): void {
+  const result = cookAtStation(state, stationId)
+  if (!result) { showToast('No matching recipe! 🤔'); return }
+  const pos = firstEmpty(state)
+  if (!pos) { showToast('Grid is full! 😅'); return }
+  const [r, c] = pos
+  state.grid[r][c] = { cat: result, lvl: 1 }
+  renderGrid()
+  renderStations()
+  renderOrders()
+  showToast(`✨ ${iname(result, 1)} cooked!`)
+  spawnParticles(r, c)
+  setTimeout(() => animCell(r, c, 'anim-merge'), 0)
+}
+
 // ── Tap interaction ───────────────────────────────────────────────────
 
 function handleTap(r: number, c: number): void {
@@ -121,7 +176,7 @@ function handleTap(r: number, c: number): void {
     state.selected = null
     applyMove(state, sr, sc, r, c)
     setTimeout(() => animCell(r, c, 'anim-pop'), 0)
-    renderAll()
+    fullRender()
     return
   }
 
@@ -134,7 +189,7 @@ function handleTap(r: number, c: number): void {
       spawnParticles(r, c)
       setTimeout(() => animCell(r, c, 'anim-merge'), 0)
     }
-    renderAll()
+    fullRender()
     return
   }
 
@@ -193,16 +248,30 @@ function onDocPointerMove(e: PointerEvent): void {
 
   const el = document.elementFromPoint(e.clientX, e.clientY)
 
-  // Clear previous drop hints (cells + order cards)
+  // Clear previous drop hints (cells + order cards + station slots)
   document.querySelectorAll<HTMLElement>('.cell.drop-move, .cell.drop-merge').forEach(c => {
     c.classList.remove('drop-move', 'drop-merge')
   })
   document.querySelectorAll<HTMLElement>('.order-card.drop-deliver').forEach(c => {
     c.classList.remove('drop-deliver')
   })
+  document.querySelectorAll<HTMLElement>('.station-slot.drop-hover')
+    .forEach(s => s.classList.remove('drop-hover'))
 
   drag.overR = null
   drag.overC = null
+
+  // Check if hovering over a station slot
+  const stationSlotEl = (el as HTMLElement | null)?.closest<HTMLElement>('.station-slot')
+  if (stationSlotEl && drag.isDragging) {
+    const stationId = stationSlotEl.dataset.stationId!
+    const slotIdx   = Number(stationSlotEl.dataset.slotIdx)
+    if (!state.stationSlots[stationId][slotIdx]) {
+      stationSlotEl.classList.add('drop-hover')
+    }
+    drag.overR = null; drag.overC = null
+    e.preventDefault(); return
+  }
 
   // Check if hovering over an order card
   const orderTarget = (el as HTMLElement | null)?.closest<HTMLElement>('.order-card:not(.removing)')
@@ -249,6 +318,11 @@ function onDocPointerUp(_e: PointerEvent): void {
   document.querySelectorAll<HTMLElement>('.cell.drag-source, .cell.drop-move, .cell.drop-merge')
     .forEach(c => c.classList.remove('drag-source', 'drop-move', 'drop-merge'))
 
+  // Capture and clear any station slot drop target
+  const stationDropSlot = document.querySelector<HTMLElement>('.station-slot.drop-hover')
+  document.querySelectorAll<HTMLElement>('.station-slot.drop-hover')
+    .forEach(s => s.classList.remove('drop-hover'))
+
   // Capture and clear any order card drop target
   const deliverTarget = document.querySelector<HTMLElement>('.order-card.drop-deliver')
   document.querySelectorAll<HTMLElement>('.order-card.drop-deliver')
@@ -258,6 +332,21 @@ function onDocPointerUp(_e: PointerEvent): void {
 
   if (!isDragging) {
     handleTap(fromR, fromC)
+    return
+  }
+
+  // Dropped onto a station slot
+  if (isDragging && stationDropSlot) {
+    const stationId = stationDropSlot.dataset.stationId!
+    const slotIdx   = Number(stationDropSlot.dataset.slotIdx)
+    const srcItem   = state.grid[fromR][fromC]
+    if (srcItem && !state.stationSlots[stationId][slotIdx]) {
+      state.grid[fromR][fromC] = null
+      state.stationSlots[stationId][slotIdx] = srcItem
+      renderGrid()
+      renderStations()
+      renderOrders()
+    }
     return
   }
 
@@ -283,7 +372,7 @@ function onDocPointerUp(_e: PointerEvent): void {
   if (!targetItem) {
     applyMove(state, fromR, fromC, overR, overC)
     setTimeout(() => animCell(overR, overC, 'anim-pop'), 0)
-    renderAll()
+    fullRender()
   } else {
     const result = applyMerge(state, fromR, fromC, overR, overC)
     if (result) {
@@ -294,7 +383,7 @@ function onDocPointerUp(_e: PointerEvent): void {
       const src = state.grid[fromR][fromC]
       if (src) showToast(`${iname(src.cat, src.lvl)} is max level! ✨`)
     }
-    renderAll()
+    fullRender()
   }
 }
 
@@ -305,6 +394,8 @@ function cancelDrag(): void {
     .forEach(c => c.classList.remove('drag-source', 'drop-move', 'drop-merge'))
   document.querySelectorAll<HTMLElement>('.order-card.drop-deliver')
     .forEach(c => c.classList.remove('drop-deliver'))
+  document.querySelectorAll<HTMLElement>('.station-slot.drop-hover')
+    .forEach(s => s.classList.remove('drop-hover'))
   drag = null
   renderGrid()
 }
@@ -329,7 +420,7 @@ function startGame(): void {
   resetLastDone()
   ;(document.getElementById('overlay-welcome') as HTMLElement).classList.remove('active')
   fillOrders(state)
-  renderAll()
+  fullRender()
 }
 
 function startNextLevel(): void {
@@ -338,11 +429,12 @@ function startNextLevel(): void {
   state.orders          = []
   state.selected        = null
   state.grid            = mkGrid()
+  state.stationSlots    = mkStationSlots()
   state.phase           = 'playing'
   resetLastDone()
   hideLevelComplete()
   fillOrders(state)
-  renderAll()
+  fullRender()
 }
 
 // ── Grid DOM build ────────────────────────────────────────────────────
@@ -373,6 +465,7 @@ function init(): void {
 
   buildGrid()
   buildSpawnerButtons(useSpawner)
+  buildStationUI(handleCook, handleSlotTap)
 
   // Static button wiring
   document.getElementById('btn-start')!.addEventListener('click', startGame)
@@ -394,6 +487,7 @@ function init(): void {
   document.addEventListener('pointercancel', cancelDrag)
 
   renderAll()
+  renderStations()
 
   // Periodic order refill
   setInterval(() => {

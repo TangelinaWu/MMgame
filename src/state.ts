@@ -2,7 +2,7 @@
 //  STATE — imports only from data.ts
 // =====================================================================
 
-import { LEVEL_CFG, type LevelCfg } from './data.ts'
+import { LEVEL_CFG, STATION_DEFS, type LevelCfg } from './data.ts'
 
 export const G = 8
 
@@ -45,10 +45,17 @@ export type GameState = {
   grid: (GridItem | null)[][]
   selected: [number, number] | null
   phase: GamePhase
+  stationSlots: Record<string, [GridItem | null, GridItem | null]>
 }
 
 export function mkGrid(): (GridItem | null)[][] {
   return Array.from({ length: G }, () => Array<GridItem | null>(G).fill(null))
+}
+
+export function mkStationSlots(): Record<string, [GridItem | null, GridItem | null]> {
+  return Object.fromEntries(
+    STATION_DEFS.map(s => [s.id, [null, null] as [GridItem | null, GridItem | null]])
+  )
 }
 
 export const state: GameState = {
@@ -60,6 +67,7 @@ export const state: GameState = {
   grid: mkGrid(),
   selected: null,
   phase: 'welcome',
+  stationSlots: mkStationSlots(),
 }
 
 export function getLevelCfg(): LevelCfg {
