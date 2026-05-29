@@ -117,7 +117,9 @@ export function showLevelComplete(): void {
   )
   const diffLabel  = nc.label
   const hints: string[] = []
-  if      (maxItemLvl >= 4) hints.push('Lv4 ingredients — needs 7 merges each')
+  if      (maxItemLvl >= 6) hints.push('Lv6 ingredients — needs 31 merges each')
+  else if (maxItemLvl >= 5) hints.push('Lv5 ingredients — needs 15 merges each')
+  else if (maxItemLvl >= 4) hints.push('Lv4 ingredients — needs 7 merges each')
   else if (maxItemLvl >= 3) hints.push('Lv3 ingredients — needs 3 merges each')
   else if (maxItemLvl >= 2) hints.push('Lv2 ingredients — needs 1 merge each')
   else                      hints.push('Lv1 ingredients — just spawn!')
